@@ -1,7 +1,14 @@
-All: compile
+CC=gcc
+CFLAGS= -wall -Wextra -C99
+
+All: clean compile run
 
 compile: oppg2.c
-		gcc oppg21.c oppg2b.c -o hei
+		$(CC) oppg21.c oppg2b.c -o hello
 
 run:compile
-	./hei
+	./hello
+
+
+clean:
+	clear
