@@ -9,8 +9,8 @@
 
 int stringsum(char *s);
 void stringsum2(char *s, int *res);
-int distance_between(char *s, char c);
 char *string_between(char *s, char c);
+int distance_between(char *s, char c);
 char **split(char *s);
 
 static int test_num = 1;
