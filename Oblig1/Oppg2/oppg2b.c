@@ -24,11 +24,56 @@ int stringsum(char *s){
 }
 
 void stringsum2(char *s, int *res){
+  int sum = 0;
+  int i;
+  //itererer igennom lista, breaker pa slutten av stringen
+  for (i = 0; s[i] != '\0'; i++) {
+    char tempchar;
 
+    if(islower(s[i]))
+      tempchar = s[i];
+    else
+      tempchar = tolower(s[i]);
+
+    int temp = tempchar - 96;
+
+    //sjekker om det er ugyldige verdier
+    if(temp < 1 || temp > 26){
+      *res =-1;
+      return;
+    }
+
+    //regner ut summen obviously
+    sum = sum + temp;
+  }
+  printf("%d\n", sum);
+  *res = sum;
 }
 
 char *string_between(char *s, char c){
-  return 0;
+  int a=0, i, k;
+  char* ramPeker;
+  //printf("%c\n", c );
+
+  for (i = 0; s[i] != '\0'; i++) {
+    if(s[i] == c){
+        if(a){
+          ramPeker = malloc(sizeof (char) *(i - a));
+          printf("cradh\n");
+
+          for (k = 0; k < (i - a); k++) {
+            ramPeker[k] = s[a+k];
+          }
+          printf("cradk\n");
+
+          return ramPeker;
+          }
+        else{
+          a=i+1;
+        }
+    }
+  }
+  return NULL;
 }
 int distance_between(char *s, char c){
   int teller=0;
@@ -63,5 +108,11 @@ int distance_between(char *s, char c){
   return teller;
 }
 char **split(char *s){
+  /*char
+  int i;
+  for (i = 0; s[i] != '\0'; i++) {
+
+  }
+*/
   return false;
 }

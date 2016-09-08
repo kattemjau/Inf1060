@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -wall -Wextra -std=c99
+CFLAGS= -Wall -Wextra -std=c99
 
 All: clean compile run
 
