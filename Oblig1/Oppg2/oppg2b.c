@@ -66,6 +66,7 @@ char *string_between(char *s, char c){
           }
           printf("cradk\n");
 
+
           return ramPeker;
           }
         else{
@@ -73,6 +74,7 @@ char *string_between(char *s, char c){
         }
     }
   }
+
   return NULL;
 }
 int distance_between(char *s, char c){
@@ -81,7 +83,7 @@ int distance_between(char *s, char c){
   int i;
   //printf("Bokstaven er: %c\n", c);
   //itterere igjennom lista
-  for (i = 0; i < s[i] != '\0'; i++) {
+  for (i = 0; s[i] != '\0'; i++) {
   //  printf("%c\n", s[i]);
     if(s[i] == c){
     //  printf("Fant: %c\n", c );
@@ -108,11 +110,30 @@ int distance_between(char *s, char c){
   return teller;
 }
 char **split(char *s){
-  /*char
-  int i;
+  char length = strlen(s);
+  //allokerer forste array i listen
+  char** p = calloc(sizeof (char*), length);
+
+  int i, c=0, v=0;
+  //allokerer plass til forste del av array
+  p[v] = malloc(c + 1);
+  //iterasjon igjennom char i array
   for (i = 0; s[i] != '\0'; i++) {
+    if(s[i] == ' '){
+      //sette en null peker til slutt.
+      p[v][c]='\0';
+
+      //setter neste plass og allokerer minne
+      v++; i++;
+      p[v] = malloc(c + 1);
+      c=0;
+    }
+    //legger inn i listen
+    p[v][c]=s[i];
+
+    c++;
 
   }
-*/
-  return false;
+
+  return p;
 }
