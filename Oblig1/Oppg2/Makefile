@@ -1,10 +1,10 @@
 CC=gcc
-CFLAGS= -Wall -Wextra -std=c99 -gdwarf-4
+CFLAGS= -Wall -Wextra -std=c99 -gdwarf-4 -g
 
 All: clean compile run
 
 compile:
-		$(CC) $(CFLAGS) oppg21.c oppg2b.c -o hello
+		$(CC) $(CFLAGS) oppg21.c oppg2.c -o hello
 
 run:compile
 	./hello
@@ -13,5 +13,5 @@ run:compile
 clean:
 	clear
 
-valgrind:
+check: compile
 	valgrind --leak-check=full ./hello

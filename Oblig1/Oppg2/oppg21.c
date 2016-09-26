@@ -9,8 +9,8 @@
 
 int stringsum(char *s);
 void stringsum2(char *s, int *res);
-char *string_between(char *s, char c);
 int distance_between(char *s, char c);
+char *string_between(char *s, char c);
 char **split(char *s);
 
 static int test_num = 1;
@@ -33,15 +33,33 @@ static void logger(int passed, char *s)
 static void test_split(char *str, char **correct)
 {
 	int i, pass = 1;
-	char buf[256] = { 0 };
-	char *str_cpy = strdup(str); // Allow mutation of original string
+	char buf[512] = { 0 };
+
+	// Allow mutation of original string
+	size_t len = strlen(str) + 1;
+	char *str_cpy = malloc(len);
+	snprintf(str_cpy, len, "%s", str);
+
 	char **res = split(str_cpy);
 
 	if (!res || !res[0]) {
 		pass = 0;
 		sprintf(buf, "split() returned NULL or an empty array");
-		logger(pass, buf);
-		return;
+		goto end;
+	}
+
+	for (i = 0; correct[i]; i++) {
+		if (!res[i]) {
+			pass = 0;
+			sprintf(buf, "split() returned fewer words than expected");
+			goto end;
+		}
+	}
+
+	if (res[i]) {
+		pass = 0;
+		sprintf(buf, "split() returned more words than expected");
+		goto end;
 	}
 
 	sprintf(buf, "\n%-16s%-16s\n", "Returned", "Expected");
@@ -52,130 +70,97 @@ static void test_split(char *str, char **correct)
 		strcat(buf, tmp);
 		if (strcmp(res[i], correct[i])) {
 			pass = 0;
-			logger(pass, buf);
-			return;
+			goto end;
 		}
 	}
 
+end:
 	logger(pass, buf);
 	free(str_cpy);
+	free(res);
+}
+
+static void test_stringsum(char *input, int expected)
+{
+	int test;
+	char buf[256] = { 0 };
+
+	test = stringsum(input);
+	sprintf(buf, "Returned: %d, Expected: %d", test, expected);
+	logger(test == expected, buf);
+}
+
+static void test_distance_between(char *str, char c, int expected)
+{
+	int test;
+	char buf[256] = { 0 };
+
+	test = distance_between(str, c);
+	sprintf(buf, "Returned: %d, Expected: %d", test, expected);
+	logger(test == expected, buf);
+}
+
+static void test_string_between(char *str, char c, const char *expected)
+{
+	char *res_char;
+	char buf[256] = { 0 };
+
+	res_char = string_between(str, c);
+	snprintf(buf, sizeof(buf), "Returned: %s, Expected: %s", res_char, expected);
+
+	if (!res_char && expected) {
+		logger(0, buf);
+	} else {
+		if (!expected)
+			logger(!res_char, buf);
+		else
+			logger(!strcmp(res_char, expected), buf);
+		free(res_char);
+	}
+}
+
+static void test_stringsum2(char *input, int expected)
+{
+	int res_int;
+	char buf[256] = { 0 };
+
+	stringsum2(input, &res_int);
+	sprintf(buf, "Returned: %d, Expected: %d", res_int, expected);
+	logger(res_int == expected, buf);
 }
 
 int main(void)
 {
-	char buf[256] = { 0 };
-	int test;
-	char *res_char;
-	int res_int = 0;
-
 	printf("Testing stringsum()\n");
-
-	test = stringsum("abcd");
-	sprintf(buf, "Returned: %d, Expected: %d", test, 10);
-	logger(test == 10, buf);
-
-	test = stringsum("a!");
-	sprintf(buf, "Returned: %d, Expected: %d", test, -1);
-	logger(test == -1, buf);
-
-	test = stringsum("aAzZ");
-	sprintf(buf, "Returned: %d, Expected: %d", test, 54);
-	logger(test == 54, buf);
-
-	test = stringsum("ababcDcabcddAbcDaBcabcABCddabCddabcabcddABCabcDd");
-	sprintf(buf, "Returned: %d, Expected: %d", test, 120);
-	logger(test == 120, buf);
-
-	test = stringsum("");
-	sprintf(buf, "Returned: %d, Expected: %d", test, 0);
-	logger(test == 0, buf);
+	test_stringsum("abcd", 10);
+	test_stringsum("a!", -1);
+	test_stringsum("aAzZ", 54);
+	test_stringsum("ababcDcabcddAbcDaBcabcABCddabCddabcabcddABCabcDd", 120);
+	test_stringsum("", 0);
 
 	test_num = 1;
-
-	printf("Testing distance_between()\n");
-
-	test = distance_between("a1234a", 'a');
-	sprintf(buf, "Returned: %d, Expected: %d", test, 5);
-	logger(test == 5, buf);
-
-	test = distance_between("a1234", 'a');
-	sprintf(buf, "Returned: %d, Expected: %d", test, -1);
-	logger(test == -1, buf);
-
-	test = distance_between("123456a12334a123a", 'a');
-	sprintf(buf, "Returned: %d, Expected: %d", test, 6 );
-	logger(test == 6, buf);
-
-	test = distance_between("", 'a');
-	sprintf(buf, "Returned: %d, Expected: %d", test, -1);
-	logger(test == -1, buf);
+	printf("\nTesting distance_between()\n");
+	test_distance_between("a1234a", 'a', 5);
+	test_distance_between("a1234", 'a', -1);
+	test_distance_between("123456a12334a123a", 'a', 6);
+	test_distance_between("", 'a', -1);
 
 	test_num = 1;
-
-	printf("Testing string_between()\n");
-
-	res_char = string_between("a1234a", 'a');
-	sprintf(buf, "Returned: %s, Expected: %s", res_char, "1234");
-	if (res_char) {
-		logger(!strcmp(res_char, "1234"), buf);
-		free(res_char);
-	} else {
-		logger(0, buf);
-	}
-
-	res_char = string_between("a1234", 'a');
-	if (res_char) {
-		sprintf(buf, "Returned: %s, Expected: %p", res_char, NULL);
-	} else {
-		sprintf(buf, "Returned: %p, Expected: %p", res_char, NULL);
-	}
-	logger(res_char == NULL, buf);
-	if (res_char)
-		free(res_char);
-
-	res_char = string_between("A123adette er svaretaasd2qd3asd12", 'a');
-	sprintf(buf, "Returned: %s, Expected: %s", res_char, "dette er sv");
-	if (res_char) {
-		logger(!strcmp(res_char, "dette er sv"), buf);
-		free(res_char);
-	} else {
-		logger(0, buf);
-	}
-
-	res_char = string_between("", 'a');
-	if (res_char) {
-		sprintf(buf, "Returned: %s, Expected: %p", res_char, NULL);
-	} else {
-		sprintf(buf, "Returned: %p, Expected: %p", res_char, NULL);
-	}
-	logger(res_char == NULL, buf);
-	if (res_char)
-		free(res_char);
+	printf("\nTesting string_between()\n");
+	test_string_between("a1234a", 'a', "1234");
+	test_string_between("a1234", 'a', NULL);
+	test_string_between("A123adette er svaretaasd2qd3asd12", 'a', "dette er sv");
+	test_string_between("", 'a', NULL);
 
 	test_num = 1;
-
-	printf("Testing stringsum2()\n");
-
-	stringsum2("abcd", &res_int);
-	sprintf(buf, "Returned: %d, Expected: %d", res_int, 10);
-	logger(res_int == 10, buf);
-
-	stringsum2("abcd!", &res_int);
-	sprintf(buf, "Returned: %d, Expected: %d", res_int, -1);
-	logger(res_int == -1, buf);
-
-	stringsum2("bbbdbbbbbdbbdbbbbbddbbbbbdbbdbbbbdbd", &res_int);
-	sprintf(buf, "Returned: %d, Expected: %d", res_int, 90);
-	logger(res_int == 90, buf);
-
-	stringsum2("", &res_int);
-	sprintf(buf, "Returned: %d, Expected: %d", res_int, 0);
-	logger(res_int == 0, buf);
+	printf("\nTesting stringsum2()\n");
+	test_stringsum2("abcd", 10);
+	test_stringsum2("abcd!", -1);
+	test_stringsum2("bbbdbbbbbdbbdbbbbbddbbbbbdbbdbbbbdbd", 90);
+	test_stringsum2("", 0);
 
 	test_num = 1;
-
-	printf("Testing split()\n");
-
+	printf("\nTesting split()\n");
 	test_split("abcd", (char *[]){ "abcd", NULL });
 	test_split("Hei du", (char *[]){ "Hei", "du", NULL });
 	test_split("Dette er mange ord", (char *[]){ "Dette", "er", "mange", "ord", NULL });
