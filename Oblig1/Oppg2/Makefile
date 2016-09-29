@@ -4,7 +4,7 @@ CFLAGS= -Wall -Wextra -std=c99 -gdwarf-4 -g
 All: clean compile run
 
 compile:
-		$(CC) $(CFLAGS) oppg21.c oppg2.c -o hello
+		$(CC) $(CFLAGS) oblig1_tests.c oppg2.c -o hello
 
 run:compile
 	./hello
