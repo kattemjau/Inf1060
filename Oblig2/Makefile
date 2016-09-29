@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -Wall -Wextra -std=c99
+CFLAGS= -Wall -Wextra -std=c99 -g
 
 #$^ hustak trekker inn filer beskrevet (run: fil1 fil2)
 #$< pil venstre tar kun det forste argumentet
@@ -8,17 +8,17 @@ CFLAGS= -Wall -Wextra -std=c99
 
 #$@ skriv eks compile:
 
-All:compile
+All:compile run
 
 compile: main.c
-		$(CC) $< -o hei
+		$(CC) $(CFLAGS) $< -o hei
 
 run:
-	./hei
+	./hei "5router.dat"
 
 
 clean:
 	rm -f hei
 
 check: compile
-	valgrind --leak-check=full ./hei
+	valgrind --leak-check=full ./hei "5router.dat"
