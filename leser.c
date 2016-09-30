@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 #define BUF_SIZE 512
@@ -20,8 +21,13 @@ char* read_name() {
 
   name = malloc(strlen(buf) + 1);
   strcpy(name, buf);
+  printf("here\n" );
 
-
+  int ret = strcmp(buf, 'tis');
+  printf("here\n" );
+  if(ret){
+    printf("moterfakka dis worketd!!\n" );
+  }
   printf("Du skrev: %s\n", buf );
 
   return name;
