@@ -35,7 +35,7 @@ char* lesNavn() {
 }
 
 struct ruter** rutere;
-char num;
+unsigned char num;
 
 void printRuter(){
   for (int i = 0; i < num; i++) {
@@ -114,7 +114,7 @@ void readF(char* fil){
     strcpy(name, array);
 
     ru->array=name;
-    printf("Ruter modell: %s\n", array);
+    //printf("Ruter modell: %s\n", array);
 
     rutere[i]=ru;
   }
@@ -127,7 +127,7 @@ void readF(char* fil){
 }
 
 int ruterid(){
-  printf("Velg hvilken ruter du vil endre fra ID 0 - %d: \n", num-1);
+  printf("Velg hvilken ruter du vil endre fra nummer 0 - %d: \n", num-1);
   char *ruter=lesNavn();
   int rid = atoi(ruter);
   free(ruter);
@@ -139,24 +139,22 @@ int ruterid(){
 }
 
 void meny(){
-  if(num >9){
-    printf("Error, program not design to handle this mutch information\n");
-    return;
-  }
   int rid;
   int k=1;
   while(k){
 
     printf("\nVelg fra 1-9 hva du vil endre\n" );
-    printf("1: print information\n2: flagg_active\n3: flagg_wierless\n4: flagg_5gz\n5: flagg_bruk\n6: flagg_endringsnr\n7. legg til ny router\n8. endre navn\n9: avslutt\n");
+    printf("1: print information\n2: flagg_active\n3: flagg_wierless\n4: flagg_5gz\n5: flagg_bruk\n6: flagg_endringsnr\n7. legg til ny router\n8. endre navn\n9: avslutt og skriv til fil\n10: slett fil\n");
     char *navn=lesNavn();
 
     if(strcmp(navn, "7") == 0){
       struct ruter* ru;
+      //ikke freeed
       ru = malloc(sizeof(struct ruter));
-      num=num+1;
+      num++;
       printf("wat\n" );
-      char *ts=realloc(rutere, sizeof(struct ruter)*num);
+      //invallid size of 8
+      rutere=realloc(rutere, sizeof(struct ruter*)*num +1);
       free(navn);
       printf("Write ID: \n" );
       navn=lesNavn();
@@ -182,19 +180,17 @@ void meny(){
       navn=lesNavn();
       ru->flagg_bruk=!!(atoi(navn));
       free(navn);
-
-      printf("skriv lengden\n" );
-      navn=lesNavn();
-      ru->lengde=atoi(navn);
-      free(navn);
+      ru->flagg_endringsnr=0;
 
       printf("Skriv Ruter modellen\n" );
       navn=lesNavn();
       char *temp=malloc(strlen(navn)+1);
       strcpy(temp, navn);
       ru->array=temp;
+      ru->lengde=strlen(temp);
 
-      rutere[num]=ru;
+      //num should be char?
+      rutere[num-1]=ru;
 
     }
 
@@ -203,8 +199,8 @@ void meny(){
       break;
     }
     else{
-    rid=ruterid();
-    if(rid==-1)return;
+      rid=ruterid();
+      if(rid==-1)return;
     }
 
     if(strcmp(navn, "1") == 0){
@@ -214,11 +210,20 @@ void meny(){
       printf("Flagg 5gz support: %d\n",rutere[rid]->flagg_5gz );
       printf("Flagg bruk: %d\n",rutere[rid]->flagg_bruk );
       printf("Flagg endingsnr: %d\n",rutere[rid]->flagg_endringsnr );
-      int lengde = rutere[rid]->lengde;
-      printf("lengde: %d\n", lengde );
+      printf("lengde: %d\n", rutere[rid]->lengde );
       printf("Ruter Modell: ");
       printf("%s\n", rutere[rid]->array);
       printf("\n\n" );
+    }
+    else if(strcmp(navn, "10")==0){
+      free(rutere[rid]->array);
+      free(rutere[rid]);
+      for(int i=rid;i<num-1;i++){
+        rutere[i]=rutere[i+1];
+      }
+      num=num-1;
+      printf("slettet\n" );
+
     }
     else if(strcmp(navn, "2") == 0){
       rutere[rid]->flagg_active=!rutere[rid]->flagg_active;
@@ -248,23 +253,52 @@ void meny(){
       free(navn);
       printf("skriv nytt navn pao router\n" );
       navn=lesNavn();
-      free(rutere[rid]->array);
+      rutere[rid]->array=realloc(rutere[rid]->array, strlen(navn) +1);
       strcpy(rutere[rid]->array, navn);
+      rutere[rid]->lengde=strlen(navn);
 
     }
     free(navn);
   }
 
 
+}
+void skrivTilFil(char* navn){
+  FILE *fil = fopen(navn, "w");
 
-  /*
-  endre flagg
-  fwrite
-  //flag != ((active ? 0b11111111:0b00000000) & 0b00000001);
+  fwrite(&num, sizeof(int), 1, fil);
 
-  endre produsent/modell
-  legge inn en ny router (ID og annen data
-  slette data fra programmet */
+  char ch = '\n';
+  fwrite(&ch, 1, 1, fil);
+
+  for (int i = 0; i < num; i++) {
+
+  char id=rutere[i]->id;
+  fwrite(&id, 1, 1, fil);
+
+  unsigned char flagg=0;
+  flagg |= (rutere[i]->flagg_active<<0);
+  flagg |= (rutere[i]->flagg_wierless<<1);
+  flagg |= (rutere[i]->flagg_5gz<<2);
+  flagg |= (rutere[i]->flagg_bruk<<3);
+  flagg |= rutere[i]->flagg_endringsnr*16;
+  fwrite(&flagg, 1, 1, fil);
+
+  unsigned char length=strlen(rutere[i]->array)+1;
+  fwrite(&length, 1, 1, fil);
+
+
+  char *array=rutere[i]->array;
+  fwrite(array, 1, length-1, fil);
+
+  char ch = '\n';
+  fwrite(&ch, 1, 1, fil);
+
+}
+
+fclose(fil);
+
+
 }
 
 int main(int argc, char *argv[]) {
@@ -275,8 +309,10 @@ int main(int argc, char *argv[]) {
   //struct ruter* ruters;
   readF(argv[1]);
 
+  printRuter(num);
   meny();
-  //printRuter(num);
+
+  skrivTilFil(argv[1]);
 
   //free mem
   for (int i = 0; i < num; i++) {
