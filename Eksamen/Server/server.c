@@ -21,11 +21,11 @@ int create_socket(char *port){
   }
 
   int portNb = atoi(port);
-  
+
   struct sockaddr_in serveraddr;
-  memset(&sockaddr_in, 0, sizeof(struct sockaddr_in));
+  memset(&serveraddr, 0, sizeof(struct sockaddr_in));
   // server_addr.sin_family = AF_INET;
-  server_addr.sin_port=htons(portNb);
+  serveraddr.sin_port=htons(portNb);
 
   // har ikke server sin ip
   // TODO: legge til &server_addr.sin_addr.s_addr ??
@@ -41,15 +41,17 @@ int create_socket(char *port){
     close(sock);
     return EXIT_FAILURE;
   } */
-
-
-  if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))){
+/*
+  int is=1;
+  if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &is, sizeof(int))){
     perror("setsockopt()");
     close(sock);
     return EXIT_FAILURE;
   }
+*/
 
   if(bind(sock, (struct sockaddr *)&serveraddr, sizeof(serveraddr))){
+    fprintf(stderr, "PORT%s\n", port);
     perror("bind()");
     close(sock);
     return EXIT_FAILURE;
@@ -57,10 +59,22 @@ int create_socket(char *port){
 
   printf("Sucessfully binded to port: %s\n", port);
 
+  if(listen(sock, SOMAXCONN)){
+    perror("listen()");
+    close(sock);
+    return EXIT_FAILURE;
+  }
+
   return sock;
 
 
 }
+int accept_connections(int sock){
+
+
+}
+
+
 
 int main(int argc, char const *argv[]) {
 
@@ -76,13 +90,13 @@ int main(int argc, char const *argv[]) {
   //ctrl + c handling
   struct sigaction sig;
   // memset(&sig, 0, sizeof(sig));
-  sa.sa_handler = myHandler;
-  sigaction(SIGINT, &sa, NULL);
+  sig.sa_handler = myHandler;
+  sigaction(SIGINT, &sig, NULL);
 
   int sock = create_socket(port);
 
-  if(sock ){
-
+  if(sock == -1){
+    exit(EXIT_FAILURE);
   }
 
 

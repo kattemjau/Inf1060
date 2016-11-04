@@ -11,14 +11,14 @@ CFLAGS= -Wall -Wextra -std=c99 -g -D_XOPEN_SOURCE
 All:compile run
 
 compile: server.c
-		$(CC) $(CFLAGS) $< -o klient
+		$(CC) $(CFLAGS) $< -o server
 
 run:
-	./klient 129.0.0.1 293
+	./server job.jobs 4444
 
 
 clean:
-	rm -f klient
+	rm -f server
 
 check: compile
-	valgrind --leak-check=full ./klient
+	valgrind --leak-check=full ./server

@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -Wall -Wextra -std=c99 -g
+CFLAGS= -Wall -Wextra -std=c99 -g -D_XOPEN_SOURCE
 
 #$^ hustak trekker inn filer beskrevet (run: fil1 fil2)
 #$< pil venstre tar kun det forste argumentet
@@ -14,7 +14,7 @@ compile: klient.c
 		$(CC) $(CFLAGS) $< -o klient
 
 run:
-	./klient 129.0.0.1 293
+	./klient 10.0.0.122 4444
 
 
 clean:

@@ -8,8 +8,20 @@
 //#include <netdb.h> get host by name
 // #include <unistd.h> pipe it up
 
+/*
+* client
+*
+*
+*
+*
+*
+*/
+
 void myHandler(int s){
-  printf("ctrl + c sensed\n");
+  printf("\nctrl + c sensed\n");
+  printf("Terminating program\n");
+  //TODO: terminate program
+  // close socet
   exit(EXIT_FAILURE);
 }
 
@@ -42,12 +54,12 @@ int create_socket(char *ip, char *port){
     return EXIT_FAILURE;
   }
 
-  printf("Connecting to ip: %s:%s\n", ip, port );
+  printf("Connecting to ip: %s:%d\n", ip, portNb );
 
   // Prover a koble til server
   if(connect(sock, (struct sockaddr *) &serveraddr, sizeof(serveraddr))){
     //returner 1 hvis ikke klarer a connecte
-    fprintf(stderr, "Couldent connect to server: %son:%s\n", ip, port);
+    fprintf(stderr, "Couldent connect to server: %s on port:%s\n", ip, port);
     perror("connect()");
     close(sock);
     return EXIT_FAILURE;
@@ -76,7 +88,7 @@ int main(int argc, char const *argv[]) {
 
   //lager en ctrl + c signal behandler
   struct sigaction sig;
-  dig.sa_handler = myHandler;
+  sig.sa_handler = myHandler;
 
   sigaction(SIGINT, &sig, NULL);
 
@@ -86,7 +98,7 @@ int main(int argc, char const *argv[]) {
     exit(EXIT_FAILURE);
   }
   //lage barn og pipes
-  
+
   printf("Terminating program\n");
   close(sock);
   return 0;
