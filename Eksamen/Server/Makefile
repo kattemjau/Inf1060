@@ -21,4 +21,4 @@ clean:
 	rm -f server
 
 check: compile
-	valgrind --leak-check=full ./server
+	valgrind --leak-check=full ./server job.jobs 4444

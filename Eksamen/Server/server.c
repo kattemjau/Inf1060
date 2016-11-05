@@ -6,11 +6,37 @@
 #include <string.h>
 #include <signal.h>
 
+/*
+ * Server program
+ *
+ *
+ *
+ *
+ *
+ */
+
+
+ /*
+  * Handler for feilmeldingen
+  * ctrl + c
+  * Dette er for a avslutte programmet riktig
+  *
+  *
+  */
+
 void myHandler(int s){
-  printf("ctrl + c sensed\n");
-  exit(EXIT_FAILURE);
+  printf("\nctrl + c sensed\n");
+  exit(EXIT_SUCCESS);
 
 }
+
+/*
+ * Funksjon create_socket
+ * Lager socket og binder port
+ *
+ *
+ *
+ */
 
 int create_socket(char *port){
 
@@ -41,14 +67,14 @@ int create_socket(char *port){
     close(sock);
     return EXIT_FAILURE;
   } */
-/*
+
   int is=1;
   if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &is, sizeof(int))){
     perror("setsockopt()");
     close(sock);
     return EXIT_FAILURE;
   }
-*/
+
 
   if(bind(sock, (struct sockaddr *)&serveraddr, sizeof(serveraddr))){
     fprintf(stderr, "PORT%s\n", port);
@@ -65,16 +91,82 @@ int create_socket(char *port){
     return EXIT_FAILURE;
   }
 
+
   return sock;
 
 
 }
-int accept_connections(int sock){
 
+/*
+ *  Funksjon accept_connections
+ *  handler innkommende klienter
+ *  lar kun 1 koble seg til om gangen
+ *
+ *
+ *
+ */
+
+int accept_connections(int sock){
+  struct sockaddr_in caddr;
+  memset(&caddr, 0, sizeof(caddr));
+  socklen_t addrlen = sizeof(caddr);
+
+  for (;;) {
+    printf("Waiting for clients to connect: \n" );
+    int csock = accept(sock, (struct sockaddr *)&caddr, &addrlen);
+
+    if(csock == -1){
+      perror("accept()");
+      close(sock);
+      return EXIT_FAILURE;
+    }
+    printf("Client connected!\n" );
+
+    char buf[256] = { 0 };
+    ssize_t ret = recv(csock, buf, strlen(buf) - 1, 0);
+    if(ret == 0){
+      printf("Client disconnected: \n");
+    }else if(ret == -1){
+      perror("recv()");
+      close(csock);
+      return EXIT_FAILURE;
+
+    }else{
+      printf("Message from client: %s\n", buf);
+
+    }
+
+    close(csock);
+  }
+
+
+  //char *clientIp = inet_ntoa(caddr.sin_addr);
+  //printf("Ip/port: %s:%x\n",clientIp, caddr.sin_addr.s_addr );
+  return 0;
 
 }
 
+/*
+ *  Funksjon lesjobs
+ *  leser fra f\il
+ *
+ *
+ *
+ *
+ */
 
+void lesJobs(){
+
+}
+
+/*
+ * Funksjon main
+ *
+ *
+ *
+ *
+ *
+ */
 
 int main(int argc, char const *argv[]) {
 
@@ -98,6 +190,7 @@ int main(int argc, char const *argv[]) {
   if(sock == -1){
     exit(EXIT_FAILURE);
   }
+  accept_connections(sock);
 
 
   close(sock);

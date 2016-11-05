@@ -9,13 +9,23 @@
 // #include <unistd.h> pipe it up
 
 /*
-* client
-*
-*
-*
-*
-*
-*/
+ * Client program
+ *
+ *
+ *
+ *
+ *
+ */
+
+
+
+ /*
+  * Handler for feilmeldingen
+  * ctrl + c
+  * Dette er for a avslutte programmet riktig
+  *
+  *
+  */
 
 void myHandler(int s){
   printf("\nctrl + c sensed\n");
@@ -24,6 +34,14 @@ void myHandler(int s){
   // close socet
   exit(EXIT_FAILURE);
 }
+
+/*
+ * Funksjon create_socket
+ * Lager socket og oppretter kontakt med server
+ *
+ *
+ *
+ */
 
 int create_socket(char *ip, char *port){
   int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -66,14 +84,81 @@ int create_socket(char *ip, char *port){
   }
 
   printf("Connected to server: %s\n", ip);
-  //hva som skal skje etter klient er koblet til server:
-
-  //signal handler for ctrl + c from signal.h
-  // lage en handler for signal, som kjorer en selvlaget exception
 
   return sock;
 }
 
+/*
+ * meny for inputs fra bruker
+ *
+ *
+ *
+ *
+ *
+ */
+
+void meny(int sock){
+
+  int running =1;
+  while(running){
+    printf("Velg et valg fra 1-4\n" );
+
+    printf("1: Hent en jobb fra serveren\n");
+    printf("2: Hent X antall jobber fra serveren\n");
+    printf("3: Hent alle jobber fra serveren\n");
+    printf("4: Avslutte programmet\n");
+
+
+
+    char valg[4];
+    fgets(valg, 4, stdin);
+    int in = atoi(valg);
+
+    char msg[256] = { 0 };
+
+    if(in == 1){
+      printf("Du valgte valg 1\n");
+      msg[0] = 'G';
+
+    }else if(in == 2){
+      printf("Velg antall jobber du vil hente: \n");
+      char job[512];
+      fgets(job, 512, stdin);
+      printf("Antall jobber hentet: %s\n", job );
+
+    }else if(in == 3){
+      printf("Du valgte valg 3\n");
+
+
+    }else if(in == 4){
+      msg[0] = 'T';
+      running=0;
+    }else{
+      printf("Feil valg\n" );
+    }
+    printf("Message sent: %s\n", msg);
+
+    ssize_t ret = send(sock, msg, strlen(msg), 0);
+    if(ret == -1){
+      perror("send()");
+      close(sock);
+      return EXIT_FAILURE;
+    }
+
+
+
+  }
+}
+
+
+/*
+ * Funksjon main
+ *
+ *
+ *
+ *
+ *
+ */
 
 int main(int argc, char const *argv[]) {
 
@@ -93,11 +178,14 @@ int main(int argc, char const *argv[]) {
   sigaction(SIGINT, &sig, NULL);
 
   // lager ny socket
-  sock = create_socket(ip, port);
+   sock = create_socket(ip, port);
   if(sock == -1){
     exit(EXIT_FAILURE);
   }
   //lage barn og pipes
+
+  meny(sock);
+
 
   printf("Terminating program\n");
   close(sock);
