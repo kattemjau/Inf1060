@@ -182,6 +182,7 @@ int main(int argc, char const *argv[]) {
   if(sock == -1){
     exit(EXIT_FAILURE);
   }
+//  printf("socket value: %s\n", sock);
   //lage barn og pipes
 
   meny(sock);

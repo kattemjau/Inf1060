@@ -14,11 +14,11 @@ compile: klient.c
 		$(CC) $(CFLAGS) $< -o klient
 
 run:
-	./klient 127.0.0.1 4444
+	./klient 37.191.207.57 4444
 
 
 clean:
 	rm -f klient
 
 check: compile
-	valgrind --leak-check=full ./klient 10.0.0.122 4444
+	valgrind --leak-check=full ./klient 127.0.0.1 4444
