@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <signal.h>
 
 //#include <netdb.h> get host by name
@@ -27,7 +28,7 @@
   *
   */
 
-void myHandler(int s){
+void myHandler(){
   printf("\nctrl + c sensed\n");
   printf("Terminating program\n");
   //TODO: terminate program
@@ -149,6 +150,52 @@ void meny(int sock){
 
   }
 }
+/*
+ * Funksjon makeChildren
+ *
+ * Opretter alle barn
+ * og oppretter pipes mellom dem
+ *
+ * Her venter barna p beskjeder som sendes til et felles minne omrade
+ *
+ *
+ */
+
+ int makeChildren(){
+
+   pid_t pid = fork();
+   if(pid == -1){
+     perror("pid()");
+     return EXIT_FAILURE;
+   }
+   // child 1
+   if(pid == 0){
+     for(;;){
+
+       sleep(1);
+     }
+
+     return 1;
+   }
+
+   pid_t pid2 = fork();
+   if(pid == -1){
+     perror("pid()");
+     return EXIT_FAILURE;
+   }
+   // child 2
+   if(pid2 == 0){
+     for(;;){
+
+       sleep(1);
+     }
+
+     return 1;
+   }
+
+   return EXIT_SUCCESS;
+
+ }
 
 
 /*
@@ -181,8 +228,11 @@ int main(int argc, char const *argv[]) {
    sock = create_socket(ip, port);
   if(sock == -1){
     exit(EXIT_FAILURE);
+  } else if(sock == 1){
+    fprintf(stderr, "Couldent connect to server, exiting\n" );
+    exit(EXIT_FAILURE);
   }
-//  printf("socket value: %s\n", sock);
+  printf("socket value: %d\n", sock);
   //lage barn og pipes
 
   meny(sock);

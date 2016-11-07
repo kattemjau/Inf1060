@@ -14,7 +14,7 @@ compile: klient.c
 		$(CC) $(CFLAGS) $< -o klient
 
 run:
-	./klient 37.191.207.57 4444
+	./klient 10.0.0.122 4444
 
 
 clean:
