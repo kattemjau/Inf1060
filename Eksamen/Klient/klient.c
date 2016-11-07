@@ -163,19 +163,34 @@ void meny(int sock){
 
  int makeChildren(){
 
+   int fds[2];
+
+   if(pipe(fds) == -1){
+     perror("pipe()");
+     return EXIT_FAILURE;
+   }
+   //opretter pipe
+
+
+
    pid_t pid = fork();
    if(pid == -1){
      perror("pid()");
      return EXIT_FAILURE;
    }
+
+
+   char *msg = "dicks out for Harambe";
    // child 1
    if(pid == 0){
-     for(;;){
+     /*for(;;){
 
        sleep(1);
-     }
+     }*/
+     close(fds[0]);
+     write(fds[1], msg, strlen(msg));
+     exit(EXIT_SUCCESS);
 
-     return 1;
    }
 
    pid_t pid2 = fork();
@@ -183,14 +198,20 @@ void meny(int sock){
      perror("pid()");
      return EXIT_FAILURE;
    }
+
    // child 2
    if(pid2 == 0){
-     for(;;){
+    /* for(;;){
 
        sleep(1);
-     }
+     }*/
+    printf("Dis is child 2\n" );
+    exit(EXIT_SUCCESS);
 
-     return 1;
+   } else{    /* parrent*/
+     close(fds[1]);
+     read(fds[0], msg, strlen(msg) - 1);
+     printf("%s\n", msg);
    }
 
    return EXIT_SUCCESS;
@@ -224,6 +245,9 @@ int main(int argc, char const *argv[]) {
 
   sigaction(SIGINT, &sig, NULL);
 
+  makeChildren();
+
+/*
   // lager ny socket
    sock = create_socket(ip, port);
   if(sock == -1){
@@ -236,7 +260,7 @@ int main(int argc, char const *argv[]) {
   //lage barn og pipes
 
   meny(sock);
-
+*/
 
   printf("Terminating program\n");
   close(sock);
