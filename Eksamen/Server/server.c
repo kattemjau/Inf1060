@@ -1,10 +1,11 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
-//#include <netdb.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <errno.h>
 
 /*
  * Server program
@@ -24,10 +25,16 @@
   *
   */
 
-void myHandler(int s){
-  printf("\nctrl + c sensed\n");
-  exit(EXIT_SUCCESS);
+static FILE *infile;
+static int sock;
+static int csock;
 
+void myHandler(){
+  printf("\nctrl + c sensed\n");
+  close(sock);
+  close(csock);
+  close(infile);
+  exit(EXIT_SUCCESS);
 }
 
 /*
@@ -40,7 +47,7 @@ void myHandler(int s){
 
 int create_socket(char *port){
 
-  int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if(sock == -1){
     perror("socket()");
     return EXIT_FAILURE;
@@ -53,21 +60,8 @@ int create_socket(char *port){
   // server_addr.sin_family = AF_INET;
   serveraddr.sin_port=htons(portNb);
 
-  // har ikke server sin ip
-  // TODO: legge til &server_addr.sin_addr.s_addr ??
-  /*
-  int pton = inet_pton(AF_INET, ip, &server_addr.sin_addr);
 
-  if(pton == -1){
-    perror("inet_pton()");
-    close(sock);
-    return EXIT_FAILURE;
-  } else if(pton == 0){
-      fprintf(stderr, "inet_pton family errror\n");
-    close(sock);
-    return EXIT_FAILURE;
-  } */
-
+  /* fora kunne starten en ny instance av en server etter avslutning */
   int is=1;
   if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &is, sizeof(int))){
     perror("setsockopt()");
@@ -75,7 +69,7 @@ int create_socket(char *port){
     return EXIT_FAILURE;
   }
 
-
+  // bind til en spesifikk port
   if(bind(sock, (struct sockaddr *)&serveraddr, sizeof(serveraddr))){
     fprintf(stderr, "PORT%s\n", port);
     perror("bind()");
@@ -85,6 +79,7 @@ int create_socket(char *port){
 
   printf("Sucessfully binded to port: %s\n", port);
 
+  //sjekke etter trafikk pa porten
   if(listen(sock, SOMAXCONN)){
     perror("listen()");
     close(sock);
@@ -97,6 +92,27 @@ int create_socket(char *port){
 
 }
 
+char* getJob(){
+  char mbuf[256] = { 0 };
+  char *msg;
+  char type;
+  char length;
+  printf("Starter innlesning\n");
+  //leser jobb type
+  fread(&type, sizeof(char), 1, infile);
+  printf("Operation: %s\n", type);
+  //leser lengen
+  fread(&length, 1, 1, infile);
+  printf("length: %s\n", length);
+
+
+  fread(mbuf, sizeof(char), length -1, infile);
+
+  printf("MSG: %s\n", infile);
+
+  return msg;
+}
+
 /*
  *  Funksjon accept_connections
  *  handler innkommende klienter
@@ -106,58 +122,66 @@ int create_socket(char *port){
  *
  */
 
-int accept_connections(int sock){
+int accept_connections(char* fil){
   struct sockaddr_in caddr;
   memset(&caddr, 0, sizeof(caddr));
   socklen_t addrlen = sizeof(caddr);
 
-  for (;;) {
     printf("Waiting for clients to connect: \n" );
-    int csock = accept(sock, (struct sockaddr *)&caddr, &addrlen);
-
+    csock = accept(sock, (struct sockaddr *)&caddr, &addrlen);
     if(csock == -1){
       perror("accept()");
       close(sock);
       return EXIT_FAILURE;
     }
+
     printf("Client connected!\n" );
+
+    //apner fil for innlesning
+    infile = fopen(fil, "r");
+
+    /* bare 1 client kan connecte */
+    for (;;) {
 
     char buf[256] = { 0 };
     ssize_t ret = recv(csock, buf, strlen(buf) - 1, 0);
     if(ret == 0){
       printf("Client disconnected: \n");
-    }else if(ret == -1){
-      perror("recv()");
+      /* Ferdig etter client disconnecter */
+      return EXIT_SUCCESS;
+    }
+    else if(ret == -1){
       close(csock);
+      perror("recv()");
       return EXIT_FAILURE;
 
     }else{
       printf("Message from client: %s\n", buf);
+      char temp = buf[0];
+      if(temp == 'G'){
+        printf("Henter job\n");
+        getJob();
+      }else if(temp == 'T'){
+        close(csock);
+        close(infile);
+        close(sock);
+        printf("Close correctlyyy\n");
+        exit(EXIT_SUCCESS);
+      }else if(temp == 'E'){
+        //Terminate EXIT
 
+      }else{
+        printf("Wrong msg recieved from client\n");
+      }
     }
 
-    close(csock);
   }
-
-
-  //char *clientIp = inet_ntoa(caddr.sin_addr);
-  //printf("Ip/port: %s:%x\n",clientIp, caddr.sin_addr.s_addr );
-  return 0;
+  close(infile);
+  close(csock);
+  return EXIT_SUCCESS;
 
 }
 
-/*
- *  Funksjon lesjobs
- *  leser fra f\il
- *
- *
- *
- *
- */
-
-void lesJobs(){
-
-}
 
 /*
  * Funksjon main
@@ -185,12 +209,12 @@ int main(int argc, char const *argv[]) {
   sig.sa_handler = myHandler;
   sigaction(SIGINT, &sig, NULL);
 
-  int sock = create_socket(port);
+  create_socket(port);
 
   if(sock == -1){
     exit(EXIT_FAILURE);
   }
-  accept_connections(sock);
+  accept_connections(job);
 
 
   close(sock);

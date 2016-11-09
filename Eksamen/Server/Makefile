@@ -14,7 +14,7 @@ compile: server.c
 		$(CC) $(CFLAGS) $< -o server
 
 run:
-	./server job.jobs 4444
+	./server haiku.jobs 4444
 
 
 clean:
