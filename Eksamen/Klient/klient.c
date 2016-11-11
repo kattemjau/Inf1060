@@ -4,10 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <netdb.h>
+ // domene navn i client get host by name
 #include <signal.h>
+#include <arpa/inet.h>
 
 //#include <netdb.h> get host by name
-// #include <unistd.h> pipe it up
+
 
 /*
  * Client program
@@ -18,7 +21,11 @@
  *
  */
 
-
+static int sock;
+static int pc1[2];
+static int pc2[2];
+static pid_t pid;
+static pid_t pid2;
 
  /*
   * Handler for feilmeldingen
@@ -31,8 +38,14 @@
 void myHandler(){
   printf("\nctrl + c sensed\n");
   printf("Terminating program\n");
-  //TODO: terminate program
-  // close socet
+  send(sock, "E", 1, 0);
+  close(sock);
+  close(pc1[1]);
+  close(pc1[0]);
+  close(pc2[1]);
+  close(pc2[0]);
+  kill(pid, SIGTERM);
+  kill(pid2, SIGTERM);
   exit(EXIT_FAILURE);
 }
 
@@ -45,7 +58,7 @@ void myHandler(){
  */
 
 int create_socket(char *ip, char *port){
-  int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
   if(sock == -1){
     perror("socket()");
@@ -61,13 +74,9 @@ int create_socket(char *ip, char *port){
   serveraddr.sin_port=htons(portNb);
 
   //Bruker inet_pton istedet for inet_aton grunnet den sjekker ipen opp mot adresse familien
-  int ine = inet_pton(AF_INET, ip, &serveraddr.sin_addr);
-
+  int ine = inet_pton(AF_INET, ip, &serveraddr.sin_addr.s_addr);
   //Sjekker om inet_pton returnerer noe annet enn 1
-  if(ine == 0){
-    fprintf(stderr, "Not a valid ip adress: %s\n", ip );
-
-  }else if(ine == -1){
+  if(ine == -1){
     perror("inet_pton()");
     close(sock);
     return EXIT_FAILURE;
@@ -78,7 +87,7 @@ int create_socket(char *ip, char *port){
   // Prover a koble til server
   if(connect(sock, (struct sockaddr *) &serveraddr, sizeof(serveraddr))){
     //returner 1 hvis ikke klarer a connecte
-    fprintf(stderr, "Couldent connect to server: %s on port:%s\n", ip, port);
+    fprintf(stderr, "\nCouldent connect to server: %s on port:%s\n", ip, port);
     perror("connect()");
     close(sock);
     return EXIT_FAILURE;
@@ -98,7 +107,7 @@ int create_socket(char *ip, char *port){
  *
  */
 
-void meny(int sock){
+int meny(){
 
   int running =1;
   while(running){
@@ -109,46 +118,87 @@ void meny(int sock){
     printf("3: Hent alle jobber fra serveren\n");
     printf("4: Avslutte programmet\n");
 
-
-
+    int alle=0;
+    int antall =1;
     char valg[4];
     fgets(valg, 4, stdin);
     int in = atoi(valg);
 
-    char msg[256] = { 0 };
+    char msg;
 
     if(in == 1){
       printf("Du valgte valg 1\n");
-      msg[0] = 'G';
+      msg = 'G';
 
     }else if(in == 2){
       printf("Velg antall jobber du vil hente: \n");
-      char job[512];
-      fgets(job, 512, stdin);
+      char job[256];
+      fgets(job, 256, stdin);
       printf("Antall jobber hentet: %s\n", job );
+      antall=atoi(job);
+      msg = 'G';
 
     }else if(in == 3){
       printf("Du valgte valg 3\n");
-
+      msg = 'G';
+      alle=1;
 
     }else if(in == 4){
-      msg[0] = 'T';
+      msg = 'T';
       running=0;
     }else{
       printf("Feil valg\n" );
     }
-    printf("Message sent: %s\n", msg);
+    if(msg=='G' || msg== 'T'){
+      for(int i=0; i<antall || alle; i++){
+        printf("Message sent: %c\n", msg);
+        ssize_t ret = send(sock, &msg, 1, 0);
+        if(ret == -1){
+          perror("send()");
+          close(sock);
+          return EXIT_FAILURE;
+        }
+        if(msg=='T'){
+          return EXIT_SUCCESS;
+        }
+        char mbuf[256] = { 0 };
+        ssize_t et = recv(sock, mbuf, strlen(mbuf) - 1, 0);
+        if(et == 0){
+          printf("SERVER disconnected: \n");
+          /* Sjekker om client disconnecter */
+          return EXIT_SUCCESS;
+        }
+        char type=mbuf[0];
+        printf("Job Type: %c\n", type );
+        if(type=='Q'){
+          printf("Ingen flere Jobber\n");
+          send(sock, "T", 1, 0);
+          return EXIT_SUCCESS;
+        }else if(type=='O'){
+          int i = write(pc1[1], mbuf, strlen(mbuf));
+          if(i==-1){
+            perror("write()");
+            fprintf(stderr, "Pipe pc1 dosent work\n");
+          }
+          // printf("\nWrite: %d\n\n", i);
+          // printf("MESSAGE FROM SERVER: %s\n", mbuf+2, strlen(mbuf)-1);
+        }else if(type=='E'){
+          int k = write(pc2[1], mbuf, strlen(mbuf));
+          if(k==-1){
+            perror("write()");
+            fprintf(stderr, "Pipe pc2 dosent work\n");
+          }
+          // fprintf(stderr, "Message from server: %s\n", mbuf+2, strlen(mbuf)-1);
+        }else{
+          fprintf(stderr, "Error with transfer\n");
+        }
+        sleep(1);
+        // printf("Length: %d\n", mbuf[1]);
 
-    ssize_t ret = send(sock, msg, strlen(msg), 0);
-    if(ret == -1){
-      perror("send()");
-      close(sock);
-      return EXIT_FAILURE;
+      }
     }
-
-
-
   }
+  return EXIT_SUCCESS;
 }
 /*
  * Funksjon makeChildren
@@ -162,62 +212,72 @@ void meny(int sock){
  */
 
  int makeChildren(){
-
-   int fds[2];
-
-   if(pipe(fds) == -1){
+   //opretter pipes
+   /* pipe child 1 */
+   if(pipe(pc1) == -1){
      perror("pipe()");
      return EXIT_FAILURE;
    }
-   //opretter pipe
+   /* pipe child 2 */
+   if(pipe(pc2) == -1){
+     perror("pipe()");
+     return EXIT_FAILURE;
+   }
 
-
-
-   pid_t pid = fork();
+   /* oppretter childs */
+   pid = fork();
    if(pid == -1){
      perror("pid()");
      return EXIT_FAILURE;
    }
 
-
-   char *msg = "dicks out for Harambe";
-   // child 1
+   // child 1 eller O
    if(pid == 0){
-     /*for(;;){
+     for(;;){
+       char msg[258] = { 0 };
+       read(pc1[0], msg, 258);
+       if(msg[0]=='Q'){
+         printf("EXITING child 2\n");
+         exit(EXIT_SUCCESS);
+       }
+       printf("MESSAGE FROM SERVER: %s\n", msg+2, strlen(msg)-1);
+      //  printf("Child1: %s\n", msg+2, strlen(msg)-1);
 
-       sleep(1);
-     }*/
-     close(fds[0]);
-     write(fds[1], msg, strlen(msg));
-     exit(EXIT_SUCCESS);
-
+      //  sleeper 1 sekund for a spare cpu
+        sleep(1);
+     }
    }
 
-   pid_t pid2 = fork();
+   pid2 = fork();
    if(pid == -1){
      perror("pid()");
      return EXIT_FAILURE;
    }
 
-   // child 2
+   // child 2 eller E
    if(pid2 == 0){
-    /* for(;;){
-
-       sleep(1);
-     }*/
-    printf("Dis is child 2\n" );
-    exit(EXIT_SUCCESS);
-
+     for(;;){
+       char msg[258] = { 0 };
+       read(pc2[0], msg, 258);
+       if(msg[0]=='Q'){
+         printf("EXITING child 2\n");
+         exit(EXIT_SUCCESS);
+       }
+       fprintf(stderr, "Message from server: %s\n", msg+2, strlen(msg)-1);
+      //  printf("Child1: %s\n", msg+2, strlen(msg)-1);
+      //  sleeper 1 sekund for a spare cpu
+        sleep(1);
+     }
    } else{    /* parrent*/
-     close(fds[1]);
-     read(fds[0], msg, strlen(msg) - 1);
-     printf("%s\n", msg);
+    //  close(pc1[1]);
+    //  close(pc2[1]);
+    //  close(pc2[0]);
+    //  read(pc1[0], msg, strlen(msg) - 1);
+    //  printf("%s\n", msg);
    }
 
    return EXIT_SUCCESS;
-
  }
-
 
 /*
  * Funksjon main
@@ -235,8 +295,16 @@ int main(int argc, char const *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  int sock;
-  char *ip=argv[1];
+  struct hostent *server;
+  server = gethostbyname(argv[1]);
+  char *ip;
+  if(server == NULL){
+    ip=argv[1];
+  }else{
+    ip=server->h_name;
+    // printf("iP:%s\n",ip );
+  }
+
   char *port=argv[2];
 
   //lager en ctrl + c signal behandler
@@ -244,25 +312,32 @@ int main(int argc, char const *argv[]) {
   sig.sa_handler = myHandler;
 
   sigaction(SIGINT, &sig, NULL);
+  // signal(SIGPIPE, SIG_IGN);
 
   makeChildren();
 
-/*
+
   // lager ny socket
-   sock = create_socket(ip, port);
-  if(sock == -1){
+  int tmp = create_socket(ip, port);
+  if(tmp == -1){
     exit(EXIT_FAILURE);
-  } else if(sock == 1){
+  } else if(tmp == 1){
     fprintf(stderr, "Couldent connect to server, exiting\n" );
     exit(EXIT_FAILURE);
   }
-  printf("socket value: %d\n", sock);
+  // printf("socket value: %d\n", sock);
   //lage barn og pipes
 
-  meny(sock);
-*/
+  meny();
+
 
   printf("Terminating program\n");
+  close(pc1[1]);
+  close(pc1[0]);
+  close(pc2[1]);
+  close(pc2[0]);
+  kill(pid, SIGTERM);
+  kill(pid2, SIGTERM);
   close(sock);
   return 0;
 }
