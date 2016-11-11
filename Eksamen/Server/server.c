@@ -33,7 +33,7 @@ void myHandler(){
   printf("\nctrl + c sensed\n");
   close(sock);
   close(csock);
-  close(infile);
+  fclose(infile);
   exit(EXIT_SUCCESS);
 }
 
@@ -92,25 +92,41 @@ int create_socket(char *port){
 
 }
 
-char* getJob(){
-  char mbuf[256] = { 0 };
-  char *msg;
-  char type;
-  char length;
+static char msg[256];
+
+void getJob(){
+  unsigned char type;
+  unsigned char length;
   printf("Starter innlesning\n");
   //leser jobb type
-  fread(&type, sizeof(char), 1, infile);
-  printf("Operation: %s\n", type);
+  if(!fread(&type, sizeof(char), 1, infile)){
+    printf("END OF JOBS\n");
+    memset(msg, 0, 2);
+    msg[0]='Q';
+    msg[1]=0;
+    return;
+  }
+
+  printf("Operation: %c\n", type);
   //leser lengen
-  fread(&length, 1, 1, infile);
-  printf("length: %s\n", length);
+  fread(&length, sizeof(char), 1, infile);
 
+  printf("length: %d\n", length);
 
-  fread(mbuf, sizeof(char), length -1, infile);
+  char mbuf[length];
+  //manually initialize array
+  memset(mbuf, 0, length*sizeof(char)+2);
 
-  printf("MSG: %s\n", infile);
+  fread(mbuf, sizeof(char), length, infile);
+  // legge til \0 i buf
+  mbuf[length]='\0';
+  printf("MSG: %s\n", mbuf);
 
-  return msg;
+  memset(msg, 0, strlen(mbuf)+sizeof(char)*2);
+  msg[0]=type;
+  msg[1]=length;
+  strcat(msg, mbuf);
+
 }
 
 /*
@@ -122,7 +138,7 @@ char* getJob(){
  *
  */
 
-int accept_connections(char* fil){
+int accept_connections(){
   struct sockaddr_in caddr;
   memset(&caddr, 0, sizeof(caddr));
   socklen_t addrlen = sizeof(caddr);
@@ -138,16 +154,14 @@ int accept_connections(char* fil){
     printf("Client connected!\n" );
 
     //apner fil for innlesning
-    infile = fopen(fil, "r");
-
     /* bare 1 client kan connecte */
     for (;;) {
 
     char buf[256] = { 0 };
-    ssize_t ret = recv(csock, buf, strlen(buf) - 1, 0);
+    ssize_t ret = recv(csock, buf, sizeof(buf) - 1, 0);
     if(ret == 0){
       printf("Client disconnected: \n");
-      /* Ferdig etter client disconnecter */
+      /* Sjekker om client disconnecter */
       return EXIT_SUCCESS;
     }
     else if(ret == -1){
@@ -161,15 +175,22 @@ int accept_connections(char* fil){
       if(temp == 'G'){
         printf("Henter job\n");
         getJob();
-      }else if(temp == 'T'){
+        // printf("\nMSG: %s\n", msg);
+        ssize_t te = send(csock, &msg, strlen(msg), 0);
+        if(te == -1){
+          perror("send()");
+          close(sock);
+          return EXIT_FAILURE;
+        }
+      }else if(temp == 'T' || temp == 'E'){
+        if(temp == 'E'){
+          fprintf(stderr, "Client exitet by error%s\n");
+        }
         close(csock);
         close(infile);
         close(sock);
-        printf("Close correctlyyy\n");
+        printf("Close correctly\n");
         exit(EXIT_SUCCESS);
-      }else if(temp == 'E'){
-        //Terminate EXIT
-
       }else{
         printf("Wrong msg recieved from client\n");
       }
@@ -209,12 +230,19 @@ int main(int argc, char const *argv[]) {
   sig.sa_handler = myHandler;
   sigaction(SIGINT, &sig, NULL);
 
+  infile = fopen(job, "r");
+  if(infile == NULL){
+    perror("fopen()");
+    exit(EXIT_FAILURE);
+  }
+
+
   create_socket(port);
 
   if(sock == -1){
     exit(EXIT_FAILURE);
   }
-  accept_connections(job);
+  accept_connections();
 
 
   close(sock);

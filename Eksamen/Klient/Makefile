@@ -7,7 +7,7 @@ compile: klient.c
 		$(CC) $(CFLAGS) $< -o client
 
 run:
-	./client localhost 4444
+	./client 85.164.62.164 7777
 
 
 clean:

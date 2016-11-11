@@ -5,11 +5,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <netdb.h>
- // domene navn i client get host by name
 #include <signal.h>
 #include <arpa/inet.h>
-
-//#include <netdb.h> get host by name
 
 
 /*
@@ -36,7 +33,7 @@ static pid_t pid2;
   */
 
 void myHandler(){
-  printf("\nctrl + c sensed\n");
+  printf("ctrl + c sensed\n");
   printf("Terminating program\n");
   send(sock, "E", 1, 0);
   close(sock);
@@ -180,7 +177,6 @@ int meny(){
             perror("write()");
             fprintf(stderr, "Pipe pc1 dosent work\n");
           }
-          // printf("\nWrite: %d\n\n", i);
           // printf("MESSAGE FROM SERVER: %s\n", mbuf+2, strlen(mbuf)-1);
         }else if(type=='E'){
           int k = write(pc2[1], mbuf, strlen(mbuf));
@@ -192,7 +188,7 @@ int meny(){
         }else{
           fprintf(stderr, "Error with transfer\n");
         }
-        sleep(1);
+        // sleep(1);
         // printf("Length: %d\n", mbuf[1]);
 
       }
@@ -240,11 +236,12 @@ int meny(){
          printf("EXITING child 2\n");
          exit(EXIT_SUCCESS);
        }
+       printf("Child 1\n" );
        printf("MESSAGE FROM SERVER: %s\n", msg+2, strlen(msg)-1);
       //  printf("Child1: %s\n", msg+2, strlen(msg)-1);
 
       //  sleeper 1 sekund for a spare cpu
-        sleep(1);
+        // sleep(1);
      }
    }
 
@@ -263,10 +260,11 @@ int meny(){
          printf("EXITING child 2\n");
          exit(EXIT_SUCCESS);
        }
+       fprintf(stderr, "Child 2\n");
        fprintf(stderr, "Message from server: %s\n", msg+2, strlen(msg)-1);
       //  printf("Child1: %s\n", msg+2, strlen(msg)-1);
       //  sleeper 1 sekund for a spare cpu
-        sleep(1);
+        // sleep(1);
      }
    } else{    /* parrent*/
     //  close(pc1[1]);
