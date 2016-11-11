@@ -286,7 +286,7 @@ int meny(){
  *
  */
 
-int main(int argc, char const *argv[]) {
+int main(int argc, char *argv[]) {
 
   if(argc != 3){
     fprintf(stderr, "Usage: %s <ip> <port> \n", argv[0] );
@@ -299,8 +299,9 @@ int main(int argc, char const *argv[]) {
   if(server == NULL){
     ip=argv[1];
   }else{
-    ip=server->h_name;
-    // printf("iP:%s\n",ip );
+    ip=server->h_addr_list[0];
+    printf("%d\n", server->h_addr_list[0]);
+    printf("iP:%s\n",ip );
   }
 
   char *port=argv[2];

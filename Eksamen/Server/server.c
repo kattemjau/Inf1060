@@ -184,10 +184,10 @@ int accept_connections(){
         }
       }else if(temp == 'T' || temp == 'E'){
         if(temp == 'E'){
-          fprintf(stderr, "Client exitet by error%s\n");
+          fprintf(stderr, "Client exitet by error\n");
         }
         close(csock);
-        close(infile);
+        fclose(infile);
         close(sock);
         printf("Close correctly\n");
         exit(EXIT_SUCCESS);
@@ -197,7 +197,7 @@ int accept_connections(){
     }
 
   }
-  close(infile);
+  fclose(infile);
   close(csock);
   return EXIT_SUCCESS;
 
@@ -213,7 +213,7 @@ int accept_connections(){
  *
  */
 
-int main(int argc, char const *argv[]) {
+int main(int argc, char *argv[]) {
 
   if(argc != 3){
     fprintf(stderr, "Usage: %s <job> <port> \n", argv[0] );
