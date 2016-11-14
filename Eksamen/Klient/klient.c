@@ -160,7 +160,7 @@ int meny(){
 
       for(int i=0; i<antall; i++){
         char mbuf[256] = { 0 };
-        ssize_t et = recv(sock, mbuf, strlen(mbuf) - 1, 0);
+        ssize_t et = recv(sock, mbuf, sizeof(mbuf) - 1, 0);
         if(et == 0){
           printf("SERVER disconnected: \n");
           /* Sjekker om server disconnecter */
