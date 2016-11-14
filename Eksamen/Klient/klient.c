@@ -105,9 +105,7 @@ int create_socket(char *ip, char *port){
  */
 
 int meny(){
-
-  int running =1;
-  while(running){
+  for(;;){
     printf("Velg et valg fra 1-4\n" );
 
     printf("1: Hent en jobb fra serveren\n");
@@ -142,7 +140,6 @@ int meny(){
 
     }else if(in == 4){
       msg = 'T';
-      running=0;
     }else{
       printf("Feil valg\n" );
     }
@@ -187,11 +184,15 @@ int meny(){
           // fprintf(stderr, "Message from server: %s\n", mbuf+2, strlen(mbuf)-1);
         }else{
           fprintf(stderr, "Error with transfer\n");
+          send(sock, "T", 1, 0);
+          return EXIT_SUCCESS;
         }
         // sleep(1);
         // printf("Length: %d\n", mbuf[1]);
 
       }
+      // TODO: sleepe i 50-200 ms
+      // msleep(50)
     }
   }
   return EXIT_SUCCESS;
@@ -267,11 +268,7 @@ int meny(){
         // sleep(1);
      }
    } else{    /* parrent*/
-    //  close(pc1[1]);
-    //  close(pc2[1]);
-    //  close(pc2[0]);
-    //  read(pc1[0], msg, strlen(msg) - 1);
-    //  printf("%s\n", msg);
+
    }
 
    return EXIT_SUCCESS;
@@ -279,8 +276,8 @@ int meny(){
 
 /*
  * Funksjon main
- *
- *
+ * Starter klient programmet. Tar inn en ip og en port. Ipen kan være på
+ * Integer form eller et domene. Deretter vil den lage en SIGINT signal behandler.
  *
  *
  *
@@ -293,30 +290,30 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
+  /* Lager domene om til ip */
   struct hostent *server;
   server = gethostbyname(argv[1]);
   char *ip;
   if(server == NULL){
     ip=argv[1];
   }else{
-    ip=server->h_addr_list[0];
-    printf("%d\n", server->h_addr_list[0]);
+    ip = inet_ntoa(*((struct in_addr *) server->h_addr_list[0]));
     printf("iP:%s\n",ip );
   }
 
   char *port=argv[2];
 
-  //lager en ctrl + c signal behandler
+  /* lager en SIGINT signal behandler */
   struct sigaction sig;
   sig.sa_handler = myHandler;
-
   sigaction(SIGINT, &sig, NULL);
-  // signal(SIGPIPE, SIG_IGN);
 
+
+  /* oppretter barne prosesser */
   makeChildren();
 
 
-  // lager ny socket
+  /* lager socket */
   int tmp = create_socket(ip, port);
   if(tmp == -1){
     exit(EXIT_FAILURE);
@@ -327,6 +324,7 @@ int main(int argc, char *argv[]) {
   // printf("socket value: %d\n", sock);
   //lage barn og pipes
 
+  /* Skriver ut meny til bruker og kommuniserer med server programmet */
   meny();
 
 

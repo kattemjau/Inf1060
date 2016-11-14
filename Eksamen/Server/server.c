@@ -101,7 +101,7 @@ void getJob(){
   //leser jobb type
   if(!fread(&type, sizeof(char), 1, infile)){
     printf("END OF JOBS\n");
-    memset(msg, 0, 2);
+    memset(msg, 0, sizeof(char) + sizeof(int));
     msg[0]='Q';
     msg[1]=0;
     return;
