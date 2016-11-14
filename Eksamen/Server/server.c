@@ -21,13 +21,16 @@
   * Handler for feilmeldingen
   * ctrl + c
   * Dette er for a avslutte programmet riktig
-  *
+  * 
+  * Og lukker alle globale variabler og dreper barne prosesser.
+  * Deretter avlsutter den programmet.
   *
   */
 
 static FILE *infile;
 static int sock;
 static int csock;
+static char msg[256];
 
 void myHandler(){
   printf("\nctrl + c sensed\n");
@@ -92,7 +95,15 @@ int create_socket(char *port){
 
 }
 
-static char msg[256];
+
+
+/*
+ * Funksjonen getJob leser deler fra spesifisert fil, lager det til en melding,
+ * og lagrer det i en global variabel.
+ *
+ *
+ *
+ */
 
 void getJob(){
   unsigned char type;
@@ -172,27 +183,34 @@ int accept_connections(){
     }else{
       printf("Message from client: %s\n", buf);
       char temp = buf[0];
+      int antall = 1;
+      if(buf[1] != 0){
+        antall = atoi(buf[1]);        
+      } 
       if(temp == 'G'){
-        printf("Henter job\n");
-        getJob();
-        // printf("\nMSG: %s\n", msg);
-        ssize_t te = send(csock, &msg, strlen(msg), 0);
-        if(te == -1){
-          perror("send()");
+        for(int i=0;i<antall || temp=='A';i++){
+          getJob();
+          ssize_t te = send(csock, &msg, strlen(msg), 0);
+          if(te == -1){
+            perror("send()");
+            close(sock);
+            return EXIT_FAILURE;
+          }
+        }
+
+      }else {
+        if(temp == 'T' || temp == 'E'){
+          if(temp == 'E'){
+            fprintf(stderr, "Client exitet by error\n");
+          }
+          close(csock);
+          fclose(infile);
           close(sock);
-          return EXIT_FAILURE;
+          printf("Close correctly\n");
+          exit(EXIT_SUCCESS);
+        }else{
+          printf("Wrong msg recieved from client\n");
         }
-      }else if(temp == 'T' || temp == 'E'){
-        if(temp == 'E'){
-          fprintf(stderr, "Client exitet by error\n");
-        }
-        close(csock);
-        fclose(infile);
-        close(sock);
-        printf("Close correctly\n");
-        exit(EXIT_SUCCESS);
-      }else{
-        printf("Wrong msg recieved from client\n");
       }
     }
 

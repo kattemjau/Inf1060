@@ -28,7 +28,10 @@ static pid_t pid2;
   * Handler for feilmeldingen
   * ctrl + c
   * Dette er for a avslutte programmet riktig
-  *
+  * 
+  * Den sender en error melding til Server programmet.
+  * Og lukker alle globale variabler og dreper barne prosesser.
+  * Deretter avlsutter den programmet.
   *
   */
 
@@ -96,11 +99,11 @@ int create_socket(char *ip, char *port){
 }
 
 /*
- * meny for inputs fra bruker
- *
- *
- *
- *
+ * Meny for inputs fra bruker
+ * Leser en char fra terminalen som representerer et valg.
+ * Lager en melding som sendes til server.  
+ * Kjorer en for lokke som kjorer ihendhold til hvor mange ganger programmet forventer a fa sendt meldinger.
+ * Her leser Klient programmet jobber fra serveren, som igjen sender beskjeder til bestemte barne prosesser.
  *
  */
 
@@ -113,40 +116,38 @@ int meny(){
     printf("3: Hent alle jobber fra serveren\n");
     printf("4: Avslutte programmet\n");
 
-    int alle=0;
     int antall =1;
     char valg[4];
     fgets(valg, 4, stdin);
     int in = atoi(valg);
 
-    char msg;
+    char msg[2] = { 0 };
 
     if(in == 1){
       printf("Du valgte valg 1\n");
-      msg = 'G';
+      msg[0] = 'G';
 
     }else if(in == 2){
       printf("Velg antall jobber du vil hente: \n");
-      char job[256];
-      fgets(job, 256, stdin);
+      unsigned char job[1];
+      fgets(job, 1, stdin);
       printf("Antall jobber hentet: %s\n", job );
       antall=atoi(job);
-      msg = 'G';
+      msg[0] = 'G';
+      msg[1] = 'job';
 
     }else if(in == 3){
       printf("Du valgte valg 3\n");
-      msg = 'G';
-      alle=1;
+      msg[0] = 'A';
 
     }else if(in == 4){
-      msg = 'T';
+      msg[0] = 'T';
     }else{
       printf("Feil valg\n" );
     }
-    if(msg=='G' || msg== 'T'){
-      for(int i=0; i<antall || alle; i++){
+    if(in <= 4){
         printf("Message sent: %c\n", msg);
-        ssize_t ret = send(sock, &msg, 1, 0);
+        ssize_t ret = send(sock, &msg, strlen(msg), 0);
         if(ret == -1){
           perror("send()");
           close(sock);
@@ -155,11 +156,14 @@ int meny(){
         if(msg=='T'){
           return EXIT_SUCCESS;
         }
+
+
+      for(int i=0; i<antall; i++){
         char mbuf[256] = { 0 };
         ssize_t et = recv(sock, mbuf, strlen(mbuf) - 1, 0);
         if(et == 0){
           printf("SERVER disconnected: \n");
-          /* Sjekker om client disconnecter */
+          /* Sjekker om server disconnecter */
           return EXIT_SUCCESS;
         }
         char type=mbuf[0];
@@ -168,32 +172,31 @@ int meny(){
           printf("Ingen flere Jobber\n");
           send(sock, "T", 1, 0);
           return EXIT_SUCCESS;
-        }else if(type=='O'){
+        }
+        else if(type=='O'){
           int i = write(pc1[1], mbuf, strlen(mbuf));
           if(i==-1){
             perror("write()");
             fprintf(stderr, "Pipe pc1 dosent work\n");
           }
           // printf("MESSAGE FROM SERVER: %s\n", mbuf+2, strlen(mbuf)-1);
-        }else if(type=='E'){
+        }
+        else if(type=='E'){
           int k = write(pc2[1], mbuf, strlen(mbuf));
           if(k==-1){
             perror("write()");
             fprintf(stderr, "Pipe pc2 dosent work\n");
           }
           // fprintf(stderr, "Message from server: %s\n", mbuf+2, strlen(mbuf)-1);
-        }else{
+        }
+        else{
           fprintf(stderr, "Error with transfer\n");
           send(sock, "T", 1, 0);
           return EXIT_SUCCESS;
         }
-        // sleep(1);
-        // printf("Length: %d\n", mbuf[1]);
-
       }
-      // TODO: sleepe i 50-200 ms
-      // msleep(50)
     }
+      usleep(50000);
   }
   return EXIT_SUCCESS;
 }
@@ -203,7 +206,7 @@ int meny(){
  * Opretter alle barn
  * og oppretter pipes mellom dem
  *
- * Her venter barna p beskjeder som sendes til et felles minne omrade
+ * Her venter barna pa beskjeder som sendes til et felles minne omrade
  *
  *
  */
@@ -228,7 +231,7 @@ int meny(){
      return EXIT_FAILURE;
    }
 
-   // child 1 eller O
+   // child 1
    if(pid == 0){
      for(;;){
        char msg[258] = { 0 };
@@ -239,10 +242,6 @@ int meny(){
        }
        printf("Child 1\n" );
        printf("MESSAGE FROM SERVER: %s\n", msg+2, strlen(msg)-1);
-      //  printf("Child1: %s\n", msg+2, strlen(msg)-1);
-
-      //  sleeper 1 sekund for a spare cpu
-        // sleep(1);
      }
    }
 
@@ -252,7 +251,7 @@ int meny(){
      return EXIT_FAILURE;
    }
 
-   // child 2 eller E
+   // child 2
    if(pid2 == 0){
      for(;;){
        char msg[258] = { 0 };
@@ -263,12 +262,7 @@ int meny(){
        }
        fprintf(stderr, "Child 2\n");
        fprintf(stderr, "Message from server: %s\n", msg+2, strlen(msg)-1);
-      //  printf("Child1: %s\n", msg+2, strlen(msg)-1);
-      //  sleeper 1 sekund for a spare cpu
-        // sleep(1);
      }
-   } else{    /* parrent*/
-
    }
 
    return EXIT_SUCCESS;
