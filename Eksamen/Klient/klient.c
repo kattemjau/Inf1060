@@ -179,7 +179,7 @@ int meny(){
         // printf("TYPE: %c\n", buf[0]);
         unsigned char length = buf[1] + 1;
         // printf("LENGTH: %d\n", length);
-        char *minne;
+        char minne[256]={ 0 };
         // memset(minne, 0, length);
         ssize_t mes = recv(sock, minne, length-1, 0);
         if(mes == 0){
