@@ -21,7 +21,7 @@
   * Handler for feilmeldingen
   * ctrl + c
   * Dette er for a avslutte programmet riktig
-  * 
+  *
   * Og lukker alle globale variabler og dreper barne prosesser.
   * Deretter avlsutter den programmet.
   *
@@ -68,7 +68,6 @@ int create_socket(char *port){
   int is=1;
   if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &is, sizeof(int))){
     perror("setsockopt()");
-    close(sock);
     return EXIT_FAILURE;
   }
 
@@ -76,7 +75,6 @@ int create_socket(char *port){
   if(bind(sock, (struct sockaddr *)&serveraddr, sizeof(serveraddr))){
     fprintf(stderr, "PORT%s\n", port);
     perror("bind()");
-    close(sock);
     return EXIT_FAILURE;
   }
 
@@ -85,10 +83,8 @@ int create_socket(char *port){
   //sjekke etter trafikk pa porten
   if(listen(sock, SOMAXCONN)){
     perror("listen()");
-    close(sock);
     return EXIT_FAILURE;
   }
-
 
   return sock;
 
@@ -105,7 +101,7 @@ int create_socket(char *port){
  *
  */
 
-void getJob(){
+int getJob(){
   unsigned char type;
   unsigned char length;
   printf("Starter innlesning\n");
@@ -115,14 +111,14 @@ void getJob(){
     memset(msg, 0, sizeof(char) + sizeof(int));
     msg[0]='Q';
     msg[1]=0;
-    return;
+    return 1;
   }
 
-  printf("Operation: %c\n", type);
+  // printf("Operation: %c\n", type);
   //leser lengen
   fread(&length, sizeof(char), 1, infile);
 
-  printf("length: %d\n", length);
+  // printf("length: %d\n", length);
 
   char mbuf[length];
   //manually initialize array
@@ -131,12 +127,14 @@ void getJob(){
   fread(mbuf, sizeof(char), length, infile);
   // legge til \0 i buf
   mbuf[length]='\0';
-  printf("MSG: %s\n", mbuf);
+  // printf("MSG: %s\n", mbuf);
 
-  memset(msg, 0, strlen(mbuf)+sizeof(char)*2);
+  memset(msg, 0, strlen(mbuf)+2);
   msg[0]=type;
   msg[1]=length;
   strcat(msg, mbuf);
+
+  return EXIT_SUCCESS;
 
 }
 
@@ -145,7 +143,8 @@ void getJob(){
  *  handler innkommende klienter
  *  lar kun 1 koble seg til om gangen
  *
- *
+ *  Sender 1 job om gangen, ved kall på flere jobber. Dette gjør at serveren kan
+ *  sende jobber fortere, mens klienten bruker tid på å prosessere jobbene.
  *
  */
 
@@ -158,16 +157,13 @@ int accept_connections(){
     csock = accept(sock, (struct sockaddr *)&caddr, &addrlen);
     if(csock == -1){
       perror("accept()");
-      close(sock);
       return EXIT_FAILURE;
     }
 
     printf("Client connected!\n" );
 
-    //apner fil for innlesning
-    /* bare 1 client kan connecte */
+    /* Evig for lokke med BREAKS. Denne sender jobber til Klienten */
     for (;;) {
-
     char buf[256] = { 0 };
     ssize_t ret = recv(csock, buf, sizeof(buf) - 1, 0);
     if(ret == 0){
@@ -176,25 +172,26 @@ int accept_connections(){
       return EXIT_SUCCESS;
     }
     else if(ret == -1){
-      close(csock);
       perror("recv()");
       return EXIT_FAILURE;
 
     }else{
-      printf("Message from client: %s\n", buf);
+      printf("Message from client: %c: \n", buf[0]);
       char temp = buf[0];
       int antall = 1;
       if(buf[1] != 0){
-        antall = atoi(buf[1]);        
-      } 
-      if(temp == 'G'){
+        antall = (unsigned char) buf[1];
+      }
+      if(temp == 'G' || temp == 'A'){
         for(int i=0;i<antall || temp=='A';i++){
-          getJob();
+          int end = getJob();
           ssize_t te = send(csock, &msg, strlen(msg), 0);
           if(te == -1){
             perror("send()");
-            close(sock);
-            return EXIT_FAILURE;
+                  return EXIT_FAILURE;
+          }
+          if(end == 1){
+            break;
           }
         }
 
@@ -203,11 +200,7 @@ int accept_connections(){
           if(temp == 'E'){
             fprintf(stderr, "Client exitet by error\n");
           }
-          close(csock);
-          fclose(infile);
-          close(sock);
-          printf("Close correctly\n");
-          exit(EXIT_SUCCESS);
+          return EXIT_SUCCESS;
         }else{
           printf("Wrong msg recieved from client\n");
         }
@@ -215,8 +208,6 @@ int accept_connections(){
     }
 
   }
-  fclose(infile);
-  close(csock);
   return EXIT_SUCCESS;
 
 }
@@ -264,5 +255,7 @@ int main(int argc, char *argv[]) {
 
 
   close(sock);
+  close(csock);
+  fclose(infile);
   return 0;
 }

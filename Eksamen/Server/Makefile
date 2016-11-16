@@ -7,7 +7,7 @@ compile: server.c
 		$(CC) $(CFLAGS) $< -o server
 
 run:
-	./server linus.job 7777
+	./server haiku.job 7777
 
 
 clean:

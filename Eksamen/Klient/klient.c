@@ -7,6 +7,7 @@
 #include <netdb.h>
 #include <signal.h>
 #include <arpa/inet.h>
+#include "sys/resource.h"
 
 
 /*
@@ -28,7 +29,7 @@ static pid_t pid2;
   * Handler for feilmeldingen
   * ctrl + c
   * Dette er for a avslutte programmet riktig
-  * 
+  *
   * Den sender en error melding til Server programmet.
   * Og lukker alle globale variabler og dreper barne prosesser.
   * Deretter avlsutter den programmet.
@@ -93,7 +94,7 @@ int create_socket(char *ip, char *port){
     return EXIT_FAILURE;
   }
 
-  printf("Connected to server: %s\n", ip);
+  printf("Connected to server!\n");
 
   return sock;
 }
@@ -101,7 +102,7 @@ int create_socket(char *ip, char *port){
 /*
  * Meny for inputs fra bruker
  * Leser en char fra terminalen som representerer et valg.
- * Lager en melding som sendes til server.  
+ * Lager en melding som sendes til server.
  * Kjorer en for lokke som kjorer ihendhold til hvor mange ganger programmet forventer a fa sendt meldinger.
  * Her leser Klient programmet jobber fra serveren, som igjen sender beskjeder til bestemte barne prosesser.
  *
@@ -109,94 +110,118 @@ int create_socket(char *ip, char *port){
 
 int meny(){
   for(;;){
-    printf("Velg et valg fra 1-4\n" );
-
+    printf("\nVelg et valg fra 1-4\n" );
     printf("1: Hent en jobb fra serveren\n");
     printf("2: Hent X antall jobber fra serveren\n");
     printf("3: Hent alle jobber fra serveren\n");
     printf("4: Avslutte programmet\n");
 
     int antall =1;
-    char valg[4];
-    fgets(valg, 4, stdin);
-    int in = atoi(valg);
+    int in;
+    scanf("%d", &in);
+    printf("VALG: %d\n", in);
 
     char msg[2] = { 0 };
 
     if(in == 1){
-      printf("Du valgte valg 1\n");
       msg[0] = 'G';
 
     }else if(in == 2){
       printf("Velg antall jobber du vil hente: \n");
-      unsigned char job[1];
-      fgets(job, 1, stdin);
-      printf("Antall jobber hentet: %s\n", job );
-      antall=atoi(job);
+      int job;
+      scanf("%d", &job);
       msg[0] = 'G';
-      msg[1] = 'job';
+      msg[1] = (unsigned char) job;
+      antall = (unsigned char) job;
+      printf("Antall jobber hentet: %d\n", antall );
 
     }else if(in == 3){
-      printf("Du valgte valg 3\n");
       msg[0] = 'A';
 
     }else if(in == 4){
       msg[0] = 'T';
     }else{
-      printf("Feil valg\n" );
+      printf("Feil valg: %d\n", in);
     }
     if(in <= 4){
-        printf("Message sent: %c\n", msg);
+        printf("Message sent: %c\n\n", msg[0]);
         ssize_t ret = send(sock, &msg, strlen(msg), 0);
         if(ret == -1){
           perror("send()");
           close(sock);
           return EXIT_FAILURE;
         }
-        if(msg=='T'){
+        if(msg[0]=='T'){
           return EXIT_SUCCESS;
         }
 
 
-      for(int i=0; i<antall; i++){
-        char mbuf[256] = { 0 };
-        ssize_t et = recv(sock, mbuf, sizeof(mbuf) - 1, 0);
+      for(int i=0; i<antall || msg[0] == 'A'; i++){
+        char buf[258] = { 0 };
+        ssize_t et = recv(sock, buf, 2, 0);
         if(et == 0){
-          printf("SERVER disconnected: \n");
           /* Sjekker om server disconnecter */
+          printf("SERVER disconnected: \n");
           return EXIT_SUCCESS;
+        }else if (et == -1){
+          perror("recv()");
+          return EXIT_FAILURE;
         }
-        char type=mbuf[0];
-        printf("Job Type: %c\n", type );
+
+        char type=buf[0];
+        // printf("Job Type: %c\n", type );
         if(type=='Q'){
           printf("Ingen flere Jobber\n");
           send(sock, "T", 1, 0);
           return EXIT_SUCCESS;
         }
-        else if(type=='O'){
-          int i = write(pc1[1], mbuf, strlen(mbuf));
+
+        // printf("TYPE: %c\n", buf[0]);
+        unsigned char length = buf[1] + 1;
+        // printf("LENGTH: %d\n", length);
+        char *minne;
+        // memset(minne, 0, length);
+        ssize_t mes = recv(sock, minne, length-1, 0);
+        if(mes == 0){
+          /* Sjekker om server disconnecter */
+          printf("SERVER disconnected: \n");
+          return EXIT_SUCCESS;
+        }else if (et == -1){
+          perror("recv()");
+          return EXIT_FAILURE;
+        }
+        minne[length] = '\0';
+        strcat(buf, minne);
+
+        if(type=='O'){
+          // printf("MESSAGE FROM SERVER: %s\n", buf+2, strlen(buf));
+          int i = write(pc1[1], buf, strlen(buf));
           if(i==-1){
             perror("write()");
             fprintf(stderr, "Pipe pc1 dosent work\n");
+            return EXIT_FAILURE;
           }
-          // printf("MESSAGE FROM SERVER: %s\n", mbuf+2, strlen(mbuf)-1);
+
         }
         else if(type=='E'){
-          int k = write(pc2[1], mbuf, strlen(mbuf));
+          // fprintf(stderr, "\nMessage from server: %s\n\n", buf+2, strlen(buf));
+          int k = write(pc2[1], buf, strlen(buf));
           if(k==-1){
             perror("write()");
             fprintf(stderr, "Pipe pc2 dosent work\n");
+            return EXIT_FAILURE;
           }
-          // fprintf(stderr, "Message from server: %s\n", mbuf+2, strlen(mbuf)-1);
         }
         else{
           fprintf(stderr, "Error with transfer\n");
           send(sock, "T", 1, 0);
           return EXIT_SUCCESS;
         }
+        // Timing av barneprosesser og parrent pa 1 ms
+        usleep(1000);
+
       }
     }
-      usleep(50000);
   }
   return EXIT_SUCCESS;
 }
@@ -233,15 +258,16 @@ int meny(){
 
    // child 1
    if(pid == 0){
+     setpriority(PRIO_PROCESS, 0, 20);
      for(;;){
        char msg[258] = { 0 };
        read(pc1[0], msg, 258);
        if(msg[0]=='Q'){
-         printf("EXITING child 2\n");
+         printf("Terminating child 1\n");
          exit(EXIT_SUCCESS);
        }
        printf("Child 1\n" );
-       printf("MESSAGE FROM SERVER: %s\n", msg+2, strlen(msg)-1);
+       fprintf(stdout, "%s\n", msg+2, strlen(msg));
      }
    }
 
@@ -257,11 +283,11 @@ int meny(){
        char msg[258] = { 0 };
        read(pc2[0], msg, 258);
        if(msg[0]=='Q'){
-         printf("EXITING child 2\n");
+         printf("Terminating child 2\n");
          exit(EXIT_SUCCESS);
        }
        fprintf(stderr, "Child 2\n");
-       fprintf(stderr, "Message from server: %s\n", msg+2, strlen(msg)-1);
+       fprintf(stderr, "%s\n", msg+2, strlen(msg));
      }
    }
 
@@ -321,14 +347,16 @@ int main(int argc, char *argv[]) {
   /* Skriver ut meny til bruker og kommuniserer med server programmet */
   meny();
 
-
+  write(pc2[1], "Q", 1);
+  write(pc1[1], "Q", 1);
+  usleep(50*1000);
   printf("Terminating program\n");
   close(pc1[1]);
   close(pc1[0]);
   close(pc2[1]);
   close(pc2[0]);
-  kill(pid, SIGTERM);
-  kill(pid2, SIGTERM);
+  // kill(pid, SIGTERM);
+  // kill(pid2, SIGTERM);
   close(sock);
   return 0;
 }
