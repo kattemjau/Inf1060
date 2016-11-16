@@ -279,6 +279,7 @@ int meny(){
 
    // child 2
    if(pid2 == 0){
+     setpriority(PRIO_PROCESS, 0, 20);
      for(;;){
        char msg[258] = { 0 };
        read(pc2[0], msg, 258);
