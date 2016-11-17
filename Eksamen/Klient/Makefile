@@ -7,11 +7,11 @@ compile: klient.c
 		$(CC) $(CFLAGS) $< -o client
 
 run:
-	./client tacky.tech 7777
+	./client localhost 7777
 
 
 clean:
 	rm -f client
 
 check: compile
-	valgrind --leak-check=full ./client tacky.tech 7777
+	valgrind --leak-check=full ./client localhost 7777

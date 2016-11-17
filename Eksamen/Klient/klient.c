@@ -25,6 +25,82 @@ static int pc2[2];
 static pid_t pid;
 static pid_t pid2;
 
+void myHandler();
+int create_socket();
+int meny();
+int makeChildren();
+
+
+/*
+ * Funksjon main
+ * Starter klient programmet. Tar inn en ip og en port. Ipen kan være på
+ * Integer form eller et domene. Deretter vil den lage en SIGINT signal behandler.
+ *
+ *
+ *
+ */
+
+int main(int argc, char *argv[]) {
+
+  if(argc != 3){
+    fprintf(stderr, "Usage: %s <ip> <port> \n", argv[0] );
+    exit(EXIT_FAILURE);
+  }
+
+  /* Lager domene om til ip */
+  struct hostent *server;
+  server = gethostbyname(argv[1]);
+  char *ip;
+  if(server == NULL){
+    ip=argv[1];
+  }else{
+    ip = inet_ntoa(*((struct in_addr *) server->h_addr_list[0]));
+    printf("iP:%s\n",ip );
+  }
+
+  char *port=argv[2];
+
+  /* lager en SIGINT signal behandler */
+  struct sigaction sig;
+  memset(&sig, 0, sizeof(sig));
+  sig.sa_handler = myHandler;
+  sigaction(SIGINT, &sig, NULL);
+
+
+  /* oppretter barne prosesser */
+  makeChildren();
+
+
+  /* lager socket */
+  int tmp = create_socket(ip, port);
+  if(tmp == -1){
+    exit(EXIT_FAILURE);
+  } else if(tmp == 1){
+    fprintf(stderr, "Couldent connect to server, exiting\n" );
+    exit(EXIT_FAILURE);
+  }
+  // printf("socket value: %d\n", sock);
+  //lage barn og pipes
+
+  /* Skriver ut meny til bruker og kommuniserer med server programmet */
+  meny();
+
+  printf("Terminating program\n");
+  write(pc2[1], "Q", 1);
+  write(pc1[1], "Q", 1);
+  usleep(50000);
+  close(pc1[1]);
+  close(pc1[0]);
+  close(pc2[1]);
+  close(pc2[0]);
+  // kill(pid, SIGTERM);
+  // kill(pid2, SIGTERM);
+  close(sock);
+  return 0;
+}
+
+
+
  /*
   * Handler for feilmeldingen
   * ctrl + c
@@ -127,13 +203,23 @@ int meny(){
       msg[0] = 'G';
 
     }else if(in == 2){
-      printf("Velg antall jobber du vil hente: \n");
+      printf("Velg antall jobber du vil hente (MAX 255): \n");
       int job;
       scanf("%d", &job);
-      msg[0] = 'G';
-      msg[1] = (unsigned char) job;
-      antall = (unsigned char) job;
-      printf("Antall jobber hentet: %d\n", antall );
+      if(job>255){
+        printf("Kan ikke hente %d jobber!\n", job );
+        printf("Henter 255 jobber: \n" );
+        msg[0] = 'G';
+        job=255;
+        msg[1] = (unsigned char) job;
+        antall = (unsigned char) job;
+
+      }else{
+        msg[0] = 'G';
+        msg[1] = (unsigned char) job;
+        antall = (unsigned char) job;
+        printf("Antall jobber hentet: %d\n", antall );
+      }
 
     }else if(in == 3){
       msg[0] = 'A';
@@ -145,7 +231,7 @@ int meny(){
     }
     if(in <= 4){
         printf("Message sent: %c\n\n", msg[0]);
-        ssize_t ret = send(sock, &msg, strlen(msg), 0);
+        ssize_t ret = send(sock, &msg, sizeof(msg), 0);
         if(ret == -1){
           perror("send()");
           close(sock);
@@ -157,8 +243,8 @@ int meny(){
 
 
       for(int i=0; i<antall || msg[0] == 'A'; i++){
-        char buf[258] = { 0 };
-        ssize_t et = recv(sock, buf, 2, 0);
+        char mbuf[3] = { 0 };
+        ssize_t et = recv(sock, mbuf, 2, 0);
         if(et == 0){
           /* Sjekker om server disconnecter */
           printf("SERVER disconnected: \n");
@@ -168,20 +254,20 @@ int meny(){
           return EXIT_FAILURE;
         }
 
-        char type=buf[0];
-        // printf("Job Type: %c\n", type );
+        char type=mbuf[0];
+        printf("Job Type: %c\n", type );
         if(type=='Q'){
-          printf("Ingen flere Jobber\n");
+          printf("Ingen flere Jobber\n\n");
           send(sock, "T", 1, 0);
           return EXIT_SUCCESS;
         }
 
-        // printf("TYPE: %c\n", buf[0]);
-        unsigned char length = buf[1] + 1;
+        // printf("TYPE: %c\n", mbuf[0]);
+        unsigned char length = mbuf[1];
         // printf("LENGTH: %d\n", length);
-        char minne[256]={ 0 };
-        // memset(minne, 0, length);
-        ssize_t mes = recv(sock, minne, length-1, 0);
+        char minne[length];
+        memset(minne, 0, length);
+        ssize_t mes = recv(sock, minne, length, 0);
         if(mes == 0){
           /* Sjekker om server disconnecter */
           printf("SERVER disconnected: \n");
@@ -191,6 +277,9 @@ int meny(){
           return EXIT_FAILURE;
         }
         minne[length] = '\0';
+        char buf[length +2];
+        memset(buf, 0, sizeof(buf));
+        strcat(buf, mbuf);
         strcat(buf, minne);
 
         if(type=='O'){
@@ -258,7 +347,7 @@ int meny(){
 
    // child 1
    if(pid == 0){
-     setpriority(PRIO_PROCESS, 0, 20);
+     setpriority(PRIO_USER, 0, 20);
      for(;;){
        char msg[258] = { 0 };
        read(pc1[0], msg, 258);
@@ -267,7 +356,7 @@ int meny(){
          exit(EXIT_SUCCESS);
        }
        printf("Child 1\n" );
-       fprintf(stdout, "%s\n", msg+2, strlen(msg));
+       fprintf(stdout, "%s\n", msg+2);
      }
    }
 
@@ -279,7 +368,6 @@ int meny(){
 
    // child 2
    if(pid2 == 0){
-     setpriority(PRIO_PROCESS, 0, 20);
      for(;;){
        char msg[258] = { 0 };
        read(pc2[0], msg, 258);
@@ -288,76 +376,9 @@ int meny(){
          exit(EXIT_SUCCESS);
        }
        fprintf(stderr, "Child 2\n");
-       fprintf(stderr, "%s\n", msg+2, strlen(msg));
+       fprintf(stderr, "%s\n", msg+2);
      }
    }
 
    return EXIT_SUCCESS;
  }
-
-/*
- * Funksjon main
- * Starter klient programmet. Tar inn en ip og en port. Ipen kan være på
- * Integer form eller et domene. Deretter vil den lage en SIGINT signal behandler.
- *
- *
- *
- */
-
-int main(int argc, char *argv[]) {
-
-  if(argc != 3){
-    fprintf(stderr, "Usage: %s <ip> <port> \n", argv[0] );
-    exit(EXIT_FAILURE);
-  }
-
-  /* Lager domene om til ip */
-  struct hostent *server;
-  server = gethostbyname(argv[1]);
-  char *ip;
-  if(server == NULL){
-    ip=argv[1];
-  }else{
-    ip = inet_ntoa(*((struct in_addr *) server->h_addr_list[0]));
-    printf("iP:%s\n",ip );
-  }
-
-  char *port=argv[2];
-
-  /* lager en SIGINT signal behandler */
-  struct sigaction sig;
-  sig.sa_handler = myHandler;
-  sigaction(SIGINT, &sig, NULL);
-
-
-  /* oppretter barne prosesser */
-  makeChildren();
-
-
-  /* lager socket */
-  int tmp = create_socket(ip, port);
-  if(tmp == -1){
-    exit(EXIT_FAILURE);
-  } else if(tmp == 1){
-    fprintf(stderr, "Couldent connect to server, exiting\n" );
-    exit(EXIT_FAILURE);
-  }
-  // printf("socket value: %d\n", sock);
-  //lage barn og pipes
-
-  /* Skriver ut meny til bruker og kommuniserer med server programmet */
-  meny();
-
-  write(pc2[1], "Q", 1);
-  write(pc1[1], "Q", 1);
-  usleep(50*1000);
-  printf("Terminating program\n");
-  close(pc1[1]);
-  close(pc1[0]);
-  close(pc2[1]);
-  close(pc2[0]);
-  // kill(pid, SIGTERM);
-  // kill(pid2, SIGTERM);
-  close(sock);
-  return 0;
-}

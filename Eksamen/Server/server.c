@@ -17,20 +17,75 @@
  */
 
 
- /*
-  * Handler for feilmeldingen
-  * ctrl + c
-  * Dette er for a avslutte programmet riktig
-  *
-  * Og lukker alle globale variabler og dreper barne prosesser.
-  * Deretter avlsutter den programmet.
-  *
-  */
 
 static FILE *infile;
 static int sock;
 static int csock;
 static char msg[256];
+
+void myHandler();
+int create_socket(char *port);
+int getJob();
+int accept_connections();
+
+
+
+/*
+ * Funksjon main
+ *
+ *
+ *
+ *
+ *
+ */
+
+int main(int argc, char *argv[]) {
+
+  if(argc != 3){
+    fprintf(stderr, "Usage: %s <job> <port> \n", argv[0] );
+    exit(EXIT_FAILURE);
+  }
+
+  //int sock;
+  char *job=argv[1];
+  char *port=argv[2];
+
+  //ctrl + c handling
+  struct sigaction sig;
+  memset(&sig, 0, sizeof(sig));
+  sig.sa_handler = myHandler;
+  sigaction(SIGINT, &sig, NULL);
+
+  infile = fopen(job, "r");
+  if(infile == NULL){
+    perror("fopen()");
+    exit(EXIT_FAILURE);
+  }
+
+
+  create_socket(port);
+
+  if(sock == -1){
+    exit(EXIT_FAILURE);
+  }
+  accept_connections();
+
+
+  close(sock);
+  close(csock);
+  fclose(infile);
+  return 0;
+}
+
+/*
+* Handler for feilmeldingen
+* ctrl + c
+* Dette er for a avslutte programmet riktig
+*
+* Og lukker alle globale variabler og dreper barne prosesser.
+* Deretter avlsutter den programmet.
+*
+*/
 
 void myHandler(){
   printf("\nctrl + c sensed\n");
@@ -104,7 +159,7 @@ int create_socket(char *port){
 int getJob(){
   unsigned char type;
   unsigned char length;
-  printf("Starter innlesning\n");
+  // printf("Starter innlesning\n");
   //leser jobb type
   if(!fread(&type, sizeof(char), 1, infile)){
     printf("END OF JOBS\n");
@@ -114,11 +169,11 @@ int getJob(){
     return 1;
   }
 
-  // printf("Operation: %c\n", type);
+  printf("Operation: %c\n", type);
   //leser lengen
   fread(&length, sizeof(char), 1, infile);
 
-  // printf("length: %d\n", length);
+  printf("length: %d\n", length);
 
   char mbuf[length];
   //manually initialize array
@@ -127,11 +182,11 @@ int getJob(){
   fread(mbuf, sizeof(char), length, infile);
   // legge til \0 i buf
   mbuf[length]='\0';
-  // printf("MSG: %s\n", mbuf);
+  printf("MSG: %s\n", mbuf);
 
   memset(msg, 0, strlen(mbuf)+2);
   msg[0]=type;
-  msg[1]=length;
+  msg[1]=strlen(mbuf);
   strcat(msg, mbuf);
 
   return EXIT_SUCCESS;
@@ -210,52 +265,4 @@ int accept_connections(){
   }
   return EXIT_SUCCESS;
 
-}
-
-
-/*
- * Funksjon main
- *
- *
- *
- *
- *
- */
-
-int main(int argc, char *argv[]) {
-
-  if(argc != 3){
-    fprintf(stderr, "Usage: %s <job> <port> \n", argv[0] );
-    exit(EXIT_FAILURE);
-  }
-
-  //int sock;
-  char *job=argv[1];
-  char *port=argv[2];
-
-  //ctrl + c handling
-  struct sigaction sig;
-  // memset(&sig, 0, sizeof(sig));
-  sig.sa_handler = myHandler;
-  sigaction(SIGINT, &sig, NULL);
-
-  infile = fopen(job, "r");
-  if(infile == NULL){
-    perror("fopen()");
-    exit(EXIT_FAILURE);
-  }
-
-
-  create_socket(port);
-
-  if(sock == -1){
-    exit(EXIT_FAILURE);
-  }
-  accept_connections();
-
-
-  close(sock);
-  close(csock);
-  fclose(infile);
-  return 0;
 }
