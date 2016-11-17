@@ -9,9 +9,8 @@ compile: klient.c
 run:
 	./client localhost 7777
 
-
 clean:
-	rm -f client
+	rm -f *.o
 
 check: compile
 	valgrind --leak-check=full ./client localhost 7777

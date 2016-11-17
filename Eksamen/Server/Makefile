@@ -14,17 +14,17 @@ compile: server.c
 		$(CC) $(CFLAGS) $< -o server
 
 run:
-	./server ${args} 7777
+	./server $(LINUS) 7777
 
 testAll: compile
-	# ./server $(CORRUPT) 7777
+	./server $(CORRUPT) 7777
 	./server $(ALICE) 7777
-	# ./server $(SHORT) 7777
-	# ./server $(LINUS) 7777
-	# ./server $(PROG) 7777
+	./server $(SHORT) 7777
+	./server $(LINUS) 7777
+	./server $(PROG) 7777
 
 clean:
-	rm -f server
+	rm -f *.o
 
 check: compile
 	valgrind --leak-check=full ./server haiku.job 7777

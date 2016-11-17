@@ -33,9 +33,16 @@ int accept_connections();
 /*
  * Funksjon main
  *
+ * INPUT:
+ *  int argc, char *argv[]
+ *  argc er antall argumenter og argv[] er argumentene.
+ *  Programmet krever en job fil og en port
  *
+ *  Apner fil for innlesning
+ *  lager en socket
+ *  tar i mot klienter
  *
- *
+ *  lukker sockets og stenger av fil
  *
  */
 
@@ -99,8 +106,14 @@ void myHandler(){
  * Funksjon create_socket
  * Lager socket og binder port
  *
+ * INPUT:
+ *  char *port
+ *  Dette er porten serveren skal binde til.
  *
- *
+ * RETURNS int;
+ *  Returnerer socket.
+ *  Returnerer EXIT_FAILURE ved feil.
+ *  Disse blir handla av main.
  */
 
 int create_socket(char *port){
@@ -152,7 +165,12 @@ int create_socket(char *port){
  * Funksjonen getJob leser deler fra spesifisert fil, lager det til en melding,
  * og lagrer det i en global variabel.
  *
+ * Endrer en global variabel: msg
+ * Her finner accept_connections() meldingen den skal sende til klienten.
  *
+ * RETURNS int:
+ *  Returnerer EXIT_FAILURE ved feil, og EXIT_SUCCESS ved success.
+ *  Disse blir handla av main.
  *
  */
 
@@ -200,6 +218,10 @@ int getJob(){
  *
  *  Sender 1 job om gangen, ved kall på flere jobber. Dette gjør at serveren kan
  *  sende jobber fortere, mens klienten bruker tid på å prosessere jobbene.
+ *
+ * RETURNS int:
+ *  Returnerer EXIT_FAILURE ved feil, og EXIT_SUCCESS ved success.
+ *  Disse blir handla av main.
  *
  */
 

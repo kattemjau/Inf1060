@@ -13,18 +13,20 @@
 /*
  * Client program
  *
- *
- *
- *
+ * Tar inn 2 argumenter
+ *  IP pa server, som tall, eller som et domene navn.
+ *  Port pa server.
  *
  */
 
+/* Globale variabler */
 static int sock;
 static int pc1[2];
 static int pc2[2];
 static pid_t pid;
 static pid_t pid2;
 
+/* Liste med funksjoner */
 void myHandler();
 int create_socket();
 int meny();
@@ -36,6 +38,11 @@ int makeChildren();
  * Starter klient programmet. Tar inn en ip og en port. Ipen kan være på
  * Integer form eller et domene. Deretter vil den lage en SIGINT signal behandler.
  *
+ * Kaller pa alle funksjoner som skal kjores, og closer alle globale variabler ved
+ * program avslutning.
+ *
+ * RETURN:
+ *  Returnerer EXIT_FAILURE ved feil, ellers returneres EXIT_SUCCESS
  *
  *
  */
@@ -44,7 +51,7 @@ int main(int argc, char *argv[]) {
 
   if(argc != 3){
     fprintf(stderr, "Usage: %s <ip> <port> \n", argv[0] );
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   /* Lager domene om til ip */
@@ -67,17 +74,26 @@ int main(int argc, char *argv[]) {
   sigaction(SIGINT, &sig, NULL);
 
 
-  /* oppretter barne prosesser */
-  makeChildren();
+  /* oppretter barne prosesser, lukker alt av pipes og dreper barneprosesser i tilfelle noen ble oprettet */
+  if(makeChildren() == EXIT_FAILURE){
+    fprintf(stderr, "Kunne ikke oprette pipes/forke\n" );
+    close(pc1[1]);
+    close(pc1[0]);
+    close(pc2[1]);
+    close(pc2[0]);
+    kill(pid, SIGTERM);
+    // kill(pid2, SIGTERM); Unodvendig a drepe barn som ikke er oprettet
+    return EXIT_FAILURE;
+  }
 
 
   /* lager socket */
   int tmp = create_socket(ip, port);
   if(tmp == -1){
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } else if(tmp == 1){
     fprintf(stderr, "Couldent connect to server, exiting\n" );
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
   // printf("socket value: %d\n", sock);
   //lage barn og pipes
@@ -130,8 +146,13 @@ void myHandler(){
  * Funksjon create_socket
  * Lager socket og oppretter kontakt med server
  *
+ * INPUT:
+ *  Tar inn ip og port som input.
+ *  Disse brukes til a koble til server pogrammet.
  *
  *
+ * RETURN:
+ *  Returnerer sock.
  */
 
 int create_socket(char *ip, char *port){
@@ -146,13 +167,14 @@ int create_socket(char *ip, char *port){
 
   struct sockaddr_in serveraddr;
   memset(&serveraddr, 0, sizeof(struct sockaddr_in));
-
   serveraddr.sin_family=AF_INET;
   serveraddr.sin_port=htons(portNb);
 
-  //Bruker inet_pton istedet for inet_aton grunnet den sjekker ipen opp mot adresse familien
+  // Bruker inet_pton istedet for inet_aton grunnet den sjekker ipen opp mot adresse familien
   int ine = inet_pton(AF_INET, ip, &serveraddr.sin_addr.s_addr);
-  //Sjekker om inet_pton returnerer noe annet enn 1
+
+  /* Sjekker om Funksjonen returnerer en feilmelding.
+  Dette blir ogsa gjort videre i programmet */
   if(ine == -1){
     perror("inet_pton()");
     close(sock);
@@ -161,9 +183,8 @@ int create_socket(char *ip, char *port){
 
   printf("Connecting to ip: %s:%d\n", ip, portNb );
 
-  // Prover a koble til server
+  /* Kobler seg til server programmet */
   if(connect(sock, (struct sockaddr *) &serveraddr, sizeof(serveraddr))){
-    //returner 1 hvis ikke klarer a connecte
     fprintf(stderr, "\nCouldent connect to server: %s on port:%s\n", ip, port);
     perror("connect()");
     close(sock);
@@ -182,6 +203,11 @@ int create_socket(char *ip, char *port){
  * Kjorer en for lokke som kjorer ihendhold til hvor mange ganger programmet forventer a fa sendt meldinger.
  * Her leser Klient programmet jobber fra serveren, som igjen sender beskjeder til bestemte barne prosesser.
  *
+ * RETURNS:
+ *  returnerer EXIT_FAILURE ved feil, og EXIT_SUCCESS ved riktig avslutning.
+ *  I main vil programmet avslutte rett etter avslutning av meny, sa return verdien
+ *  blir ikke brukt. Dette kan enkelt brukes hvis programmet skal utvides.
+ *
  */
 
 int meny(){
@@ -197,7 +223,7 @@ int meny(){
     scanf("%d", &in);
     printf("VALG: %d\n", in);
 
-    char msg[2] = { 0 };
+    char msg[3] = { 0 };
 
     if(in == 1){
       msg[0] = 'G';
@@ -209,17 +235,13 @@ int meny(){
       if(job>255){
         printf("Kan ikke hente %d jobber!\n", job );
         printf("Henter 255 jobber: \n" );
-        msg[0] = 'G';
         job=255;
-        msg[1] = (unsigned char) job;
-        antall = (unsigned char) job;
 
-      }else{
+      }
+      // printf("Antall jobber hentet: %d\n", antall );
         msg[0] = 'G';
         msg[1] = (unsigned char) job;
         antall = (unsigned char) job;
-        printf("Antall jobber hentet: %d\n", antall );
-      }
 
     }else if(in == 3){
       msg[0] = 'A';
@@ -314,15 +336,20 @@ int meny(){
   }
   return EXIT_SUCCESS;
 }
+
 /*
  * Funksjon makeChildren
  *
  * Opretter alle barn
  * og oppretter pipes mellom dem
  *
- * Her venter barna pa beskjeder som sendes til et felles minne omrade
+ * Her venter barna pa beskjeder som printes ut til stderr, eller stdout
  *
+ * Hvis barna motar en medling med Q, terminerer de.
  *
+ * RETURN:
+ *  Returnerer EXIT_SUCCESS ved success, eller  EXIT_FAILURE ved feil.
+ *  Retur verdien blir sjekket i main.
  */
 
  int makeChildren(){
