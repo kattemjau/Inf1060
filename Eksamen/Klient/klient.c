@@ -7,7 +7,6 @@
 #include <netdb.h>
 #include <signal.h>
 #include <arpa/inet.h>
-#include "sys/resource.h"
 
 
 /*
@@ -31,6 +30,7 @@ void myHandler();
 int create_socket();
 int meny();
 int makeChildren();
+void closePipe();
 
 
 /*
@@ -41,7 +41,7 @@ int makeChildren();
  * Kaller pa alle funksjoner som skal kjores, og closer alle globale variabler ved
  * program avslutning.
  *
- * RETURN:
+ * RETURN int:
  *  Returnerer EXIT_FAILURE ved feil, ellers returneres EXIT_SUCCESS
  *
  *
@@ -77,12 +77,7 @@ int main(int argc, char *argv[]) {
   /* oppretter barne prosesser, lukker alt av pipes og dreper barneprosesser i tilfelle noen ble oprettet */
   if(makeChildren() == EXIT_FAILURE){
     fprintf(stderr, "Kunne ikke oprette pipes/forke\n" );
-    close(pc1[1]);
-    close(pc1[0]);
-    close(pc2[1]);
-    close(pc2[0]);
-    kill(pid, SIGTERM);
-    // kill(pid2, SIGTERM); Unodvendig a drepe barn som ikke er oprettet
+    closePipe();
     return EXIT_FAILURE;
   }
 
@@ -90,9 +85,11 @@ int main(int argc, char *argv[]) {
   /* lager socket */
   int tmp = create_socket(ip, port);
   if(tmp == -1){
+    closePipe();
     return EXIT_FAILURE;
   } else if(tmp == 1){
     fprintf(stderr, "Couldent connect to server, exiting\n" );
+    closePipe();
     return EXIT_FAILURE;
   }
   // printf("socket value: %d\n", sock);
@@ -102,6 +99,14 @@ int main(int argc, char *argv[]) {
   meny();
 
   printf("Terminating program\n");
+  closePipe();
+  close(sock);
+  return 0;
+}
+
+/* Lukker pipes og dreper barnaprosesser */
+
+void closePipe(){
   write(pc2[1], "Q", 1);
   write(pc1[1], "Q", 1);
   usleep(50000);
@@ -109,10 +114,9 @@ int main(int argc, char *argv[]) {
   close(pc1[0]);
   close(pc2[1]);
   close(pc2[0]);
-  // kill(pid, SIGTERM);
-  // kill(pid2, SIGTERM);
-  close(sock);
-  return 0;
+  kill(pid, SIGKILL);
+  kill(pid2, SIGKILL);
+
 }
 
 
@@ -133,12 +137,7 @@ void myHandler(){
   printf("Terminating program\n");
   send(sock, "E", 1, 0);
   close(sock);
-  close(pc1[1]);
-  close(pc1[0]);
-  close(pc2[1]);
-  close(pc2[0]);
-  kill(pid, SIGTERM);
-  kill(pid2, SIGTERM);
+  closePipe();
   exit(EXIT_FAILURE);
 }
 
@@ -151,7 +150,7 @@ void myHandler(){
  *  Disse brukes til a koble til server pogrammet.
  *
  *
- * RETURN:
+ * RETURN int:
  *  Returnerer sock.
  */
 
@@ -203,7 +202,15 @@ int create_socket(char *ip, char *port){
  * Kjorer en for lokke som kjorer ihendhold til hvor mange ganger programmet forventer a fa sendt meldinger.
  * Her leser Klient programmet jobber fra serveren, som igjen sender beskjeder til bestemte barne prosesser.
  *
- * RETURNS:
+ *
+ *
+ * SEND:
+ *  Klienten sender G for hente job meldinger, med et antall som medfølger
+ *  Sender antall 0 for 1 job, dette tolker server programmet som 1 job.
+ *  Sender A for alle
+ *
+ *
+ * RETURN int:
  *  returnerer EXIT_FAILURE ved feil, og EXIT_SUCCESS ved riktig avslutning.
  *  I main vil programmet avslutte rett etter avslutning av meny, sa return verdien
  *  blir ikke brukt. Dette kan enkelt brukes hvis programmet skal utvides.
@@ -219,8 +226,10 @@ int meny(){
     printf("4: Avslutte programmet\n");
 
     int antall =1;
-    int in;
-    scanf("%d", &in);
+    char kin[2];
+    scanf("%s", kin);
+
+    int in = atoi(kin);
     printf("VALG: %d\n", in);
 
     char msg[3] = { 0 };
@@ -250,8 +259,9 @@ int meny(){
       msg[0] = 'T';
     }else{
       printf("Feil valg: %d\n", in);
+
     }
-    if(in <= 4){
+    if(in <= 4 && in>=1){
         printf("Message sent: %c\n\n", msg[0]);
         ssize_t ret = send(sock, &msg, sizeof(msg), 0);
         if(ret == -1){
@@ -347,7 +357,7 @@ int meny(){
  *
  * Hvis barna motar en medling med Q, terminerer de.
  *
- * RETURN:
+ * RETURN int:
  *  Returnerer EXIT_SUCCESS ved success, eller  EXIT_FAILURE ved feil.
  *  Retur verdien blir sjekket i main.
  */
@@ -374,7 +384,6 @@ int meny(){
 
    // child 1
    if(pid == 0){
-     setpriority(PRIO_USER, 0, 20);
      for(;;){
        char msg[258] = { 0 };
        read(pc1[0], msg, 258);
@@ -382,8 +391,8 @@ int meny(){
          printf("Terminating child 1\n");
          exit(EXIT_SUCCESS);
        }
-       printf("Child 1\n" );
-       fprintf(stdout, "%s\n", msg+2);
+       fprintf(stdout, "Child 1\n" );
+       fprintf(stdout, "%s\n" , msg+2);
      }
    }
 

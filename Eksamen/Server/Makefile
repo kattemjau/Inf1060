@@ -6,7 +6,9 @@ ALICE=alice.job
 SHORT=tooshort2.job
 LINUS=linus.job
 PROG=prog.job
+NOLENGTH=nolength.job
 
+PORT=7777
 
 All:compile run
 
@@ -14,17 +16,18 @@ compile: server.c
 		$(CC) $(CFLAGS) $< -o server
 
 run:
-	./server $(LINUS) 7777
+	./server $(NOLENGTH) $(PORT)
 
 testAll: compile
-	./server $(CORRUPT) 7777
-	./server $(ALICE) 7777
-	./server $(SHORT) 7777
-	./server $(LINUS) 7777
-	./server $(PROG) 7777
+	./server $(CORRUPT) $(PORT)
+	./server $(ALICE) $(PORT)
+	./server $(SHORT) $(PORT)
+	./server $(LINUS) $(PORT)
+	./server $(PROG) $(PORT)
+	./server $(NOLENGTH) $(PORT)
 
 clean:
-	rm -f *.o
+	rm -f server
 
 check: compile
-	valgrind --leak-check=full ./server haiku.job 7777
+	valgrind --leak-check=full ./server $(LINUS) $(PORT)

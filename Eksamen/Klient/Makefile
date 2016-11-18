@@ -1,16 +1,20 @@
 CC=gcc
 CFLAGS= -Wall -Wextra -std=c99 -g -D_XOPEN_SOURCE
 
+PORT=7777
+HOST=localhost
+
+
 All:compile run
 
 compile: klient.c
 		$(CC) $(CFLAGS) $< -o client
 
 run:
-	./client localhost 7777
+	./client $(HOST) $(PORT)
 
 clean:
-	rm -f *.o
+	rm -f server
 
 check: compile
-	valgrind --leak-check=full ./client localhost 7777
+	valgrind --leak-check=full ./client $(HOST) $(PORT)

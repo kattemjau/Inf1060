@@ -10,9 +10,15 @@
 /*
  * Server program
  *
+ * Tar inn 2 argumenter
+ *  Job fil, og port
  *
+ *  lager socket og binder til port
+ *  listener på porten og aksepterer 1 client
+ *  stenger da socket slik at ingen flere kan koble seg til
+ *  sender jobber
  *
- *
+ *  lukker alle Globale variabler
  *
  */
 
@@ -78,7 +84,6 @@ int main(int argc, char *argv[]) {
   accept_connections();
 
 
-  close(sock);
   close(csock);
   fclose(infile);
   return 0;
@@ -149,7 +154,7 @@ int create_socket(char *port){
   printf("Sucessfully binded to port: %s\n", port);
 
   //sjekke etter trafikk pa porten
-  if(listen(sock, SOMAXCONN)){
+  if(listen(sock, 1)){
     perror("listen()");
     return EXIT_FAILURE;
   }
@@ -184,14 +189,23 @@ int getJob(){
     memset(msg, 0, sizeof(char) + sizeof(int));
     msg[0]='Q';
     msg[1]=0;
-    return 1;
+    return EXIT_FAILURE;
   }
 
   printf("Operation: %c\n", type);
   //leser lengen
   fread(&length, sizeof(char), 1, infile);
-
   printf("length: %d\n", length);
+
+  /* Tolker at det ikke er noen lengde pa jobben at
+      joben er corrupt og skal termineres. */
+  if(length ==0){
+    printf("No job length, corrupt job\n");
+    memset(msg, 0, sizeof(char) + sizeof(int));
+    msg[0]='Q';
+    msg[1]=0;
+    return EXIT_SUCCESS;
+  }
 
   char mbuf[length];
   //manually initialize array
@@ -204,6 +218,7 @@ int getJob(){
 
   memset(msg, 0, strlen(mbuf)+2);
   msg[0]=type;
+  /* Legger til faktiske lengden av meldingen. Klienten er dependent av dette */
   msg[1]=strlen(mbuf);
   strcat(msg, mbuf);
 
@@ -236,6 +251,8 @@ int accept_connections(){
       perror("accept()");
       return EXIT_FAILURE;
     }
+
+    close(sock);
 
     printf("Client connected!\n" );
 
