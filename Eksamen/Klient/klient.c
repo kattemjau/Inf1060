@@ -25,6 +25,7 @@ static int pc2[2];
 static pid_t pid;
 static pid_t pid2;
 
+
 /* Liste med funksjoner */
 void myHandler();
 int create_socket();
@@ -315,7 +316,6 @@ int meny(){
         strcat(buf, minne);
 
         if(type=='O'){
-          // printf("MESSAGE FROM SERVER: %s\n", buf+2, strlen(buf));
           int i = write(pc1[1], buf, strlen(buf));
           if(i==-1){
             perror("write()");
@@ -325,7 +325,6 @@ int meny(){
 
         }
         else if(type=='E'){
-          // fprintf(stderr, "\nMessage from server: %s\n\n", buf+2, strlen(buf));
           int k = write(pc2[1], buf, strlen(buf));
           if(k==-1){
             perror("write()");
