@@ -16,7 +16,7 @@ compile: server.c
 		$(CC) $(CFLAGS) $< -o server
 
 run:
-	./server $(NOLENGTH) $(PORT)
+	./server $(LINUS) $(PORT)
 
 testAll: compile
 	./server $(CORRUPT) $(PORT)
