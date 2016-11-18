@@ -1,5 +1,6 @@
 CC=gcc
-CFLAGS= -Wall -Wextra -std=c99 -g -D_XOPEN_SOURCE -D _DEFAULT_SOURCE
+CFLAGS= -Wall -Wextra -std=c99 -g -D_XOPEN_SOURCE -D _BSD_SOURCE
+# brukte -D _BSD_SOURCE pa privat maskin istedet for -D BSD_SOURCE
 
 PORT=7777
 HOST=localhost
